@@ -29,6 +29,7 @@ CREATE TABLE PACIENTE
     pacSexo					VARCHAR(50) 	NOT NULL,
     pacEdad   				INT 			NOT NULL,
     pacCorreo				VARCHAR(80) 	NOT NULL,
+	pacTelefono				VARCHAR(20) 	NOT NULL,
     pacPeso					FLOAT 			NOT NULL,
     pacEstatura				float			NOT NULL,
     pacEstatus				INT 			NOT NULL,
