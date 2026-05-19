@@ -22,7 +22,7 @@ El proyecto incluye:
 | Sebastian Mendoza Godinez | Project Manager / Backend Developer / Tech Lead | @TU-USUARIO |
 | Alejandro Medina Resendiz | Diseñador UI/UX / QA Engineer | @USUARIO |
 | Pedro Omar Marcelino Martinez | Frontend Developer | @USUARIO |
-| Eddi Rendon Sigler | Ing. Datos & DevOps | @USUARIO |
+| Eddi Rendon Sigler | Ing. Datos & DevOps | 233111779-ship-it  |
 
 > Reemplazar los `@USUARIO` por los usuarios reales de GitHub de cada integrante.
 
