@@ -15,7 +15,7 @@ CREATE TABLE MEDICO
 (
 	medId 					INT 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
     medNombre 				VARCHAR(50) 	NOT NULL,
-    medApePat				VARCHAR(50),
+    medApePat				VARCHAR(50) 	NOT NULL,
     medApeMat 				VARCHAR(50),
     medSexo					VARCHAR(10) 	NOT NULL,
     medEdad   				INT 			NOT NULL,
@@ -29,10 +29,10 @@ CREATE TABLE PACIENTE
 (
 	pacId 					INT 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
     pacNombre 				VARCHAR(50) 	NOT NULL,
-    pacApePat				VARCHAR(50),
+    pacApePat				VARCHAR(50) 	NOT NULL,
     pacApeMat 				VARCHAR(50),
     pacSexo					VARCHAR(50) 	NOT NULL,
-    pacEdad   				INT 			NOT NULL,
+    pacFechaNac				DATE 			NOT NULL,
     pacCorreo				VARCHAR(80) 	NOT NULL,
 	pacTelefono				VARCHAR(20) 	NOT NULL,
     pacPeso					FLOAT 			NOT NULL,
