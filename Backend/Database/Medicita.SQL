@@ -26,8 +26,13 @@ CREATE TABLE MEDICO
     medSexo					VARCHAR(10) 	NOT NULL,
     medEdad   				INT 			NOT NULL,
     medCorreo				VARCHAR(80) 	NOT NULL,
+    medCedula               VARCHAR(20) 	NOT NULL,
     medEstatus				INT 			NOT NULL,
-    medFechaReg				TIMESTAMP 		NOT NULL
+    medFechaReg				TIMESTAMP 		NOT NULL,
+    medDiasDisponibles      VARCHAR(100),
+    medDiasNoDisponibles    VARCHAR(100),
+    medTurnos               VARCHAR(100),
+
 );
 
 CREATE TABLE ESPECIALIDAD 
@@ -55,6 +60,7 @@ CREATE TABLE PACIENTE
     pacApeMat 				VARCHAR(50),
     pacSexo					VARCHAR(50) 	NOT NULL,
     pacFechaNac				DATE 			NOT NULL,
+    pacNSS                  VARCHAR(20) 	NOT NULL,
     pacCorreo				VARCHAR(80) 	NOT NULL,
 	pacTelefono				VARCHAR(20) 	NOT NULL,
     pacPeso					FLOAT 			NOT NULL,
