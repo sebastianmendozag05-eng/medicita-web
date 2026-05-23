@@ -7,10 +7,6 @@ USE BD_MEDICITA;
 CREATE TABLE USUARIOS
 (
 	userId 					INT 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
-	userNombre 				VARCHAR(50) 	NOT NULL,
-	userApePat				VARCHAR(50) 	NOT NULL,
-	userApeMat 				VARCHAR(50),
-	userCorreo				VARCHAR(80) 	NOT NULL,
 	userPassword			VARCHAR(255) 	NOT NULL,
 	userEstatus				INT 			NOT NULL,
 	userFechaReg			TIMESTAMP 		NOT NULL
