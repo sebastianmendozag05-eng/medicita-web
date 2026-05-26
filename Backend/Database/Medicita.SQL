@@ -141,26 +141,28 @@ CREATE TABLE NOTA_CONSULTA (
 
 /**INSERTAR DATOS DE PRUEBA */
 -- 1. Insertar Especialidad
-INSERT INTO ESPECIALIDAD (espeNombre) VALUES ('Cardiología'), ('Medicina General');
+INSERT INTO ESPECIALIDAD VALUES 
+	(NULL,'Cardiología'), (NULL,'Medicina General');
 
 -- 2. Insertar Médico (Asumimos que ya validaste su estatus)
-INSERT INTO MEDICO (medNombre, medApePat, medApeMat, medSexo, medEdad, medCorreo, medCedula, medEstatus, medFechaReg) 
-VALUES ('Carlos', 'López', 'García', 'Masculino', 45, 'carlos.lopez@medicita.com', 'CED123456', 1, NOW());
+INSERT INTO MEDICO VALUES 
+(NULL, 'Carlos', 'López', 'García', 'Masculino', 45, 'carlos.lopez@medicita.com', 'CED123456', 1, NOW());
 
 -- 3. Vincular Médico con Especialidad (Dr. Carlos López es Cardiólogo)
-INSERT INTO MEDICO_ESPECIALIDAD (medId, espeId) VALUES (1, 1);
+INSERT INTO MEDICO_ESPECIALIDAD VALUES 
+(NULL,1, 1);
 
 -- 4. Asignar el Contrato/Turno al Médico (Lunes a Viernes de 8am a 4pm)
-INSERT INTO TURNO_MEDICO (medId, turDiasLaborales, turHoraEntrada, turHoraSalida) 
-VALUES (1, 'Lunes a Viernes', '08:00:00', '16:00:00');
+INSERT INTO TURNO_MEDICO VALUES 
+(NULL,1, 'Lunes a Viernes', '08:00:00', '16:00:00');
 
 -- 5. Insertar un Paciente
-INSERT INTO PACIENTE (pacNombre, pacApePat, pacApeMat, pacSexo, pacFechaNac, pacNSS, pacCorreo, pacTelefono, pacPeso, pacEstatura, pacEstatus, pacFechaReg) 
-VALUES ('Ana', 'Martínez', 'Ruiz', 'Femenino', '1990-05-15', 'NSS987654', 'ana.martinez@email.com', '555-1234', 65.5, 1.68, 1, NOW());
+INSERT INTO PACIENTE VALUES 
+(NULL, 'Ana', 'Martínez', 'Ruiz', 'Femenino', '1990-05-15', 'NSS987654', 'ana.martinez@email.com', '555-1234', 65.5, 1.68, 1, NOW());
 
 -- 6. Crear el Expediente del Paciente
-INSERT INTO EXPEDIENTE (pacId, expAlergias, expPadecimientos, expMedicamentos) 
-VALUES (1, 'Penicilina', 'Hipertensión leve', 'Losartán 50mg');
+INSERT INTO EXPEDIENTE VALUES 
+(NULL,1, 'Penicilina', 'Hipertensión leve', 'Losartán 50mg');
 
 -- 7. Agendar una Cita (Para mañana a las 10:00 AM)
 INSERT INTO CITA (medId, pacId, astId, citFecha, citHora, citMotivo, citEstatus, citFechaReg) 
@@ -198,3 +200,55 @@ VALUES (1, 1, NULL, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 'Chequeo de
 -- (NULL, 6, 4, NOW() , '15:00:00', 'Consulta neurológica', 1500.00, 1, NOW()),
 -- (NULL, 1, 5, NOW() , '16:00:00', 'Chequeo pediátrico de rutina', 500.00, 1, NOW());
 
+/*FUNCIONES, PROCEDIMIENTOS ALMACENADOS Y TRIGGERS */
+
+DELIMITER //
+
+CREATE TRIGGER trg_completar_cita
+AFTER INSERT ON NOTA_CONSULTA
+FOR EACH ROW
+BEGIN
+    -- Cuando se inserta una nota, actualizamos el estatus de la cita correspondiente a 'completada'
+    UPDATE CITA 
+    SET citEstatus = 'completada' 
+    WHERE citId = NEW.citId;
+END //
+
+DELIMITER ;
+
+
+-- PRUEBA A: Insertar una nota de consulta para la cita que agendamos
+INSERT INTO NOTA_CONSULTA (citId, medId, pacId, notaAsistencia, notaDiagnostico, notaReceta) 
+VALUES (1, 1, 1, TRUE, 'Paciente estable. Presión 120/80. Peso normal.', 'Continuar con Losartán 1 cada 24h.');
+
+-- PRUEBA B
+SELECT c.citId, p.pacNombre, m.medNombre, c.citFecha, c.citHora, c.citEstatus 
+FROM CITA c
+INNER JOIN PACIENTE p ON c.pacId = p.pacId
+INNER JOIN MEDICO m ON c.medId = m.medId;
+
+-- PRUEBA C
+SELECT 
+    p.pacNombre AS Paciente, 
+    p.pacEdad AS Edad, -- (Ojo, si usaste fechaNac, aquí puedes calcular la edad)
+    e.expAlergias AS Alergias,
+    e.expPadecimientos AS Cronicos,
+    n.notaFechaCreacion AS FechaConsulta,
+    n.notaDiagnostico AS DiagnosticoPrevio
+FROM PACIENTE p
+LEFT JOIN EXPEDIENTE e ON p.pacId = e.pacId
+LEFT JOIN NOTA_CONSULTA n ON p.pacId = n.pacId
+WHERE p.pacId = 1;
+
+-- PRUEBA D
+SELECT 
+    m.medNombre AS Doctor, 
+    e.espeNombre AS Especialidad,
+    t.turDiasLaborales AS Dias, 
+    t.turHoraEntrada AS Entrada, 
+    t.turHoraSalida AS Salida
+FROM MEDICO m
+INNER JOIN MEDICO_ESPECIALIDAD me ON m.medId = me.medId
+INNER JOIN ESPECIALIDAD e ON me.espeId = e.espeId
+INNER JOIN TURNO_MEDICO t ON m.medId = t.medId
+WHERE m.medEstatus = 1;
