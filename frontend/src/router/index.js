@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import LoginView from '../views/LoginView.vue' // Importamos tu nueva vista de Login
+import LoginView from '../views/LoginView.vue' 
+import ForgotPassword from '../views/ForgotPassword.vue' 
+// 1. Importamos el nuevo Dashboard
+import DashboardPacienteView from '../views/DashboardPacienteView.vue' 
 
 const router = createRouter({
   history: createWebHistory(),
@@ -11,9 +14,20 @@ const router = createRouter({
       component: HomeView
     },
     {
-      path: '/login', // Cuando entres a http://localhost:5173/login...
+      path: '/login', 
       name: 'login',
-      component: LoginView // ...Vue cargará este componente
+      component: LoginView 
+    },
+    {
+      path: '/recuperar', 
+      name: 'recuperar',
+      component: ForgotPassword 
+    },
+    // 2. Agregamos la ruta del Dashboard
+    {
+      path: '/dashboard', 
+      name: 'dashboard-paciente',
+      component: DashboardPacienteView 
     }
   ]
 })
