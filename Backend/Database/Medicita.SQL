@@ -7,10 +7,6 @@ USE BD_MEDICITA;
 CREATE TABLE USUARIOS
 (
 	userId 					INT 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
-	userNombre 				VARCHAR(50) 	NOT NULL,
-	userApePat				VARCHAR(50) 	NOT NULL,
-	userApeMat 				VARCHAR(50),
-	userCorreo				VARCHAR(80) 	NOT NULL,
 	userPassword			VARCHAR(255) 	NOT NULL,
 	userEstatus				INT 			NOT NULL,
 	userFechaReg			TIMESTAMP 		NOT NULL
@@ -26,8 +22,13 @@ CREATE TABLE MEDICO
     medSexo					VARCHAR(10) 	NOT NULL,
     medEdad   				INT 			NOT NULL,
     medCorreo				VARCHAR(80) 	NOT NULL,
+    medCedula               VARCHAR(20) 	NOT NULL,
     medEstatus				INT 			NOT NULL,
-    medFechaReg				TIMESTAMP 		NOT NULL
+    medFechaReg				TIMESTAMP 		NOT NULL,
+    medDiasDisponibles      VARCHAR(100),
+    medDiasNoDisponibles    VARCHAR(100),
+    medTurnos               VARCHAR(100),
+
 );
 
 CREATE TABLE ESPECIALIDAD 
@@ -55,6 +56,7 @@ CREATE TABLE PACIENTE
     pacApeMat 				VARCHAR(50),
     pacSexo					VARCHAR(50) 	NOT NULL,
     pacFechaNac				DATE 			NOT NULL,
+    pacNSS                  VARCHAR(20) 	NOT NULL,
     pacCorreo				VARCHAR(80) 	NOT NULL,
 	pacTelefono				VARCHAR(20) 	NOT NULL,
     pacPeso					FLOAT 			NOT NULL,
