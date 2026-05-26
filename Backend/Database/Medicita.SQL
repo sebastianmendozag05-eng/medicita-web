@@ -8,6 +8,7 @@ CREATE TABLE USUARIOS
 (
 	userId 					INT 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	userPassword			VARCHAR(255) 	NOT NULL,
+	usrRol          		ENUM('Paciente', 'Medico', 'Asistente Medico') NOT NULL,
 	userEstatus				INT 			NOT NULL,
 	userFechaReg			TIMESTAMP 		NOT NULL
 );
@@ -31,12 +32,34 @@ CREATE TABLE MEDICO
 
 );
 
+-- TABLA ESPECIALIDAD
 CREATE TABLE ESPECIALIDAD 
 (
 	espeId 					INT 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	espeNombre 				VARCHAR(50) 	NOT NULL
 );
 
+-- TABLA TURNO_MEDICO (Funciona como su contrato de horario fijo)
+CREATE TABLE TURNO_MEDICO (
+    turId           INT             NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    medId           INT             NOT NULL UNIQUE, -- Relación 1:1, un médico tiene un turno fijo
+    turDiasLaborales VARCHAR(100)   NOT NULL COMMENT 'Ej: Lunes a Viernes',
+    turHoraEntrada  TIME            NOT NULL COMMENT 'Ej: 14:00:00',
+    turHoraSalida   TIME            NOT NULL COMMENT 'Ej: 22:00:00',
+    FOREIGN KEY (medId) REFERENCES MEDICO(medId)
+);
+
+-- TABLA AUSENCIA_MEDICO (Para sus días de descanso fijo, vacaciones o incapacidad)
+CREATE TABLE AUSENCIA_MEDICO (
+    ausId           INT             NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    medId           INT             NOT NULL,
+    ausTipo         ENUM('Descanso Semanal', 'Vacaciones', 'Incapacidad') NOT NULL,
+    ausFecha        DATE            NOT NULL COMMENT 'Fecha exacta en la que no laborará',
+    ausMotivo       VARCHAR(200)    NULL,
+    FOREIGN KEY (medId) REFERENCES MEDICO(medId)
+);
+
+-- TABLA MEDICO_ESPECIALIDAD (Relación N:M entre médicos y especialidades)
 CREATE TABLE MEDICO_ESPECIALIDAD
 (
 	meId 					INT 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -65,23 +88,57 @@ CREATE TABLE PACIENTE
     pacFechaReg				TIMESTAMP 		NOT NULL
 );
 
+-- TABLA ASISTENTE MEDICO (Recepcionista)
+CREATE TABLE ASISTENTE_MEDICO (
+    astId           INT             NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    usrId           INT             NOT NULL,
+    astNombre       VARCHAR(100)    NOT NULL,
+    FOREIGN KEY (usrId) REFERENCES USUARIO(usrId)
+);
+
+-- TABLA EXPEDIENTE (Relación "Tiene" - 1:1 con Paciente)
+CREATE TABLE EXPEDIENTE (
+    expId           INT             NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    pacId           INT             NOT NULL UNIQUE,
+    expAlergias     TEXT,
+    expPadecimientos TEXT,
+    expMedicamentos TEXT,
+    FOREIGN KEY (pacId) REFERENCES PACIENTE(pacId)
+);
+
 -- TABLA CITA, TABLA CON LLAVES FORANEAS DE LAS TABLAS MEDICO Y PACIENTE
 CREATE TABLE CITA(
 	citId 					INT 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    medId					INT 			NOT NULL,
+    medId					INT 			NOT NULL, -- SABER EL TURNO DEL MEDICO PARA ASIGNAR LA CITA
     pacId 					INT 			NOT NULL,
+	astId           		INT             NULL, -- Puede ser NULL si la agenda el paciente
     citFecha				TIMESTAMP 			NULL,
     citHora 				TIME 			NOT NULL,
     citMotivo 				VARCHAR(200)	NOT NULL,
-    citCosto				FLOAT   		NOT NULL,
-    citEstatus				INT 			NOT NULL,
+    citEstatus				ENUM('agendada', 'confirmada', 'completada', 'cancelada') NOT NULL DEFAULT 'agendada',
     citFechaReg				TIMESTAMP 		NOT NULL,
+	citMotivoCancela 		VARCHAR(255)   NULL,
     
+    FOREIGN KEY (medId) REFERENCES MEDICO(medId),
+	FOREIGN KEY (astId) REFERENCES ASISTENTE_MEDICO(astId),
+    FOREIGN KEY (pacId) REFERENCES PACIENTE(pacId)
+);
+
+-- TABLA NOTA_CONSULTA (La entidad robusta que consolida la visita médica)
+CREATE TABLE NOTA_CONSULTA (
+    notaId          INT             NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    citId           INT             NOT NULL UNIQUE, -- 1 a 1: Una nota pertenece a una cita específica
+    medId           INT             NOT NULL,
+    pacId           INT             NOT NULL,
+    notaAsistencia  BOOLEAN         NOT NULL DEFAULT TRUE COMMENT 'Confirma que el paciente ingresó',
+    notaDiagnostico TEXT            NOT NULL COMMENT 'Lo que el doctor observó',
+    notaReceta      TEXT            NULL COMMENT 'Medicamentos recetados en esta cita',
+    notaFechaCreacion TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (citId) REFERENCES CITA(citId),
     FOREIGN KEY (medId) REFERENCES MEDICO(medId),
     FOREIGN KEY (pacId) REFERENCES PACIENTE(pacId)
 );
 
--- TABLA USUARIOS PARA LA GESTION DE USUARIOS EN LA APLICACION
 
 /*INSERTAR MEDICOS */
 INSERT INTO MEDICO  VALUES
