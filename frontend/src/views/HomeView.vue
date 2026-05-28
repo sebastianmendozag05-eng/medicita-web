@@ -123,7 +123,9 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const tipoUsuario = ref('paciente') 
 const mostrarPass = ref(false)
 
@@ -209,6 +211,25 @@ const registrarUsuario = () => {
       pacEstatus: 1,
       password: formulario.value.password
     }
+
+    // MANDAMOS TODO LIMPIO AL LOCALSTORAGE CON LAS LLAVES EXACTAS
+    localStorage.setItem('usuarioNombre', formulario.value.nombre)
+    localStorage.setItem('usuarioApePat', formulario.value.apePat)
+    localStorage.setItem('usuarioApeMat', formulario.value.apeMat || '')
+    localStorage.setItem('usuarioCorreo', formulario.value.correo)
+    localStorage.setItem('usuarioTelefono', formulario.value.telefono)
+    localStorage.setItem('usuarioNss', formulario.value.nss)
+    localStorage.setItem('usuarioSexo', formulario.value.sexo)
+    localStorage.setItem('usuarioFechaNac', formulario.value.fechaNac)
+    localStorage.setItem('usuarioPeso', formulario.value.peso)
+    localStorage.setItem('usuarioEstatura', formulario.value.estatura)
+    
+    console.log('Paciente registrado y guardado localmente:', payload)
+    alert('¡Registro de PACIENTE exitoso! Ahora inicia sesión.')
+    
+    // Redirección directa al Login
+    router.push('/login')
+
   } else {
     payload = {
       medNombre: formulario.value.nombre,
@@ -222,150 +243,42 @@ const registrarUsuario = () => {
       medTurnos: formulario.value.turnos,
       especialidadId: formulario.value.especialidadId
     }
+    console.log('Médico registrado:', payload)
+    alert('¡Registro de MÉDICO exitoso! Ahora inicia sesión.')
+    router.push('/login')
   }
-
-  console.log('Objeto formateado según SQL listo para enviar por Axios/Fetch:', payload)
-  alert(`¡Registro de ${tipoUsuario.value.toUpperCase()} exitoso! Datos listos en consola.`)
 }
 </script>
 
 <style scoped>
-.container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: #f8fafc;
-  padding: 2rem 1rem;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.form-wrapper {
-  background: white;
-  padding: 2.5rem 2rem;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
-  width: 100%;
-  max-width: 440px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.logo-icon {
-  background-color: #0d8a72;
-  color: white;
-  font-weight: bold;
-  font-size: 1.4rem;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-}
-
+.container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; padding: 2rem 1rem; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+.form-wrapper { background: white; padding: 2.5rem 2rem; border-radius: 16px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03); width: 100%; max-width: 440px; }
+.brand { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+.logo-icon { background-color: #0d8a72; color: white; font-weight: bold; font-size: 1.4rem; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
 h1 { color: #0d8a72; font-size: 1.6rem; font-weight: bold; margin: 0; }
 h2 { color: #1e293b; font-size: 1.4rem; margin: 0 0 0.3rem 0; font-weight: 600; text-align: left;}
 .subtitle { color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem; text-align: left; }
-
-.role-selector {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.role-selector label {
-  flex: 1;
-  cursor: pointer;
-}
-.role-selector input {
-  display: none;
-}
-.role-selector span {
-  display: block;
-  text-align: center;
-  padding: 0.6rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  color: #64748b;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-.role-selector input:checked + span {
-  background-color: #e6f4f1;
-  border-color: #0d8a72;
-  color: #0d8a72;
-}
-
+.role-selector { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+.role-selector label { flex: 1; cursor: pointer; }
+.role-selector input { display: none; }
+.role-selector span { display: block; text-align: center; padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; color: #64748b; font-weight: 500; transition: all 0.2s; }
+.role-selector input:checked + span { background-color: #e6f4f1; border-color: #0d8a72; color: #0d8a72; }
 .form-group { margin-bottom: 1rem; position: relative; }
 .form-group-row { display: flex; gap: 1rem; }
 .form-group-row .form-group { flex: 1; }
-
-.input-label {
-  font-size: 0.8rem;
-  color: #64748b;
-  margin-bottom: 0.3rem;
-  display: block;
-}
-
-input, select {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  background-color: #fff;
-  color: #334155;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-}
-input:focus, select:focus {
-  border-color: #0d8a72;
-  outline: none;
-}
-
-.password-field .eye-icon {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  font-size: 1rem;
-  user-select: none;
-}
-
+.input-label { font-size: 0.8rem; color: #64748b; margin-bottom: 0.3rem; display: block; }
+input, select { width: 100%; padding: 0.75rem 1rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; background-color: #fff; color: #334155; box-sizing: border-box; transition: border-color 0.2s; }
+input:focus, select:focus { border-color: #0d8a72; outline: none; }
+.password-field .eye-icon { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1rem; user-select: none; }
 .invalido { color: #ef4444; font-size: 0.8rem; margin: -0.5rem 0 0.8rem 0; }
 .terms { display: flex; align-items: flex-start; gap: 0.5rem; margin: 1.2rem 0; }
 .terms input { width: auto; margin-top: 0.2rem; }
 .terms label { font-size: 0.85rem; color: #64748b; line-height: 1.3; }
 .terms a { color: #0d8a72; text-decoration: none; font-weight: 500; }
-
-button {
-  width: 100%;
-  padding: 0.85rem;
-  background-color: #0d8a72;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
+button { width: 100%; padding: 0.85rem; background-color: #0d8a72; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
 button:hover { background-color: #0a6c59; }
 .btn-deshabilitado { background-color: #cbd5e1; cursor: not-allowed; }
 .btn-deshabilitado:hover { background-color: #cbd5e1; }
-
-.login-redirect {
-  text-align: center;
-  margin-top: 1.5rem;
-  font-size: 0.9rem;
-  color: #64748b;
-}
+.login-redirect { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: #64748b; }
 .login-redirect a { color: #0d8a72; text-decoration: none; font-weight: 500; }
 </style>

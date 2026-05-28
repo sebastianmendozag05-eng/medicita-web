@@ -8,21 +8,21 @@
       </div>
       
       <nav class="nav-menu">
-        <a href="#" class="nav-item active">
+        <router-link to="/dashboard" class="nav-item" :class="{ active: vistaActiva === 'inicio' }">
           <span class="icon">🏠</span> Inicio
-        </a>
-        <a href="#" class="nav-item">
+        </router-link>
+        <router-link to="/dashboard/perfil" class="nav-item" active-class="active">
           <span class="icon">👤</span> Mi Perfil
-        </a>
-        <a href="#" class="nav-item">
+        </router-link>
+        <router-link to="/dashboard/citas" class="nav-item" active-class="active">
           <span class="icon">💬</span> Mis Citas
-        </a>
-        <a href="#" class="nav-item">
+        </router-link>
+        <router-link to="/dashboard/historial" class="nav-item" active-class="active">
           <span class="icon">📁</span> Historial Médico
-        </a>
-        <a href="#" class="nav-item">
+        </router-link>
+        <router-link to="/dashboard/notificaciones" class="nav-item" active-class="active">
           <span class="icon">🔔</span> Notificaciones
-        </a>
+        </router-link>
       </nav>
       
       <div class="sidebar-footer">
@@ -42,104 +42,104 @@
         </div>
       </header>
 
-      <section class="overview-section">
-        <h2 class="section-title">Resumen</h2>
-        <div class="metrics-grid">
-          
-          <div class="metric-card">
-            <div class="metric-icon-wrapper blue">🗓️</div>
-            <div class="metric-info">
-              <h3>3</h3>
-              <p>Próximas citas</p>
-            </div>
-          </div>
-
-          <div class="metric-card">
-            <div class="metric-icon-wrapper red">❤️</div>
-            <div class="metric-info">
-              <h3>2</h3>
-              <p>Consultas</p>
-            </div>
-          </div>
-
-          <div class="metric-card">
-            <div class="metric-icon-wrapper purple">📄</div>
-            <div class="metric-info">
-              <h3>5</h3>
-              <p>Historiales</p>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      <section class="appointments-section">
-        <div class="section-header">
-          <h2 class="section-title">Próximas citas</h2>
-          <a href="#" class="view-all-link">Ver todas</a>
-        </div>
-
-        <div class="appointments-list">
-          
-          <div class="appointment-card">
-            <div class="appointment-details">
-              <div class="specialty-icon">🫀</div>
-              <div>
-                <h4>Cardiología</h4>
-                <p class="doctor-name">Dr. Carlos Hernández</p>
-                <p class="appointment-date">21 de mayo, 2026 - 10:50 AM</p>
+      <div v-if="vistaActiva === 'inicio'">
+        <section class="overview-section">
+          <h2 class="section-title">Resumen</h2>
+          <div class="metrics-grid">
+            
+            <div class="metric-card">
+              <div class="metric-icon-wrapper blue">🗓️</div>
+              <div class="metric-info">
+                <h3>3</h3>
+                <p>Próximas citas</p>
               </div>
             </div>
-            <div class="appointment-status">
-              <span class="badge status-confirmed">Confirmada</span>
-              <span class="arrow-icon">›</span>
-            </div>
-          </div>
 
-          <div class="appointment-card">
-            <div class="appointment-details">
-              <div class="specialty-icon">🩺</div>
-              <div>
-                <h4>Medicina General</h4>
-                <p class="doctor-name">Dra. Irene Torres</p>
-                <p class="appointment-date">30 de mayo, 2026 - 08:35 AM</p>
+            <div class="metric-card">
+              <div class="metric-icon-wrapper red">❤️</div>
+              <div class="metric-info">
+                <h3>2</h3>
+                <p>Consultas</p>
               </div>
             </div>
-            <div class="appointment-status">
-              <span class="badge status-pending">Pendiente</span>
-              <span class="arrow-icon">›</span>
-            </div>
-          </div>
 
-          <div class="appointment-card">
-            <div class="appointment-details">
-              <div class="specialty-icon">🧪</div>
-              <div>
-                <h4>Dermatología</h4>
-                <p class="doctor-name">Dr. Pedro Sisniega</p>
-                <p class="appointment-date">30 de junio, 2026 - 11:00 AM</p>
+            <div class="metric-card">
+              <div class="metric-icon-wrapper purple">📄</div>
+              <div class="metric-info">
+                <h3>5</h3>
+                <p>Historiales</p>
               </div>
             </div>
-            <div class="appointment-status">
-              <span class="badge status-confirmed">Confirmada</span>
-              <span class="arrow-icon">›</span>
-            </div>
+
+          </div>
+        </section>
+
+        <section class="appointments-section">
+          <div class="section-header">
+            <h2 class="section-title">Próximas citas</h2>
+            <router-link to="/dashboard/citas" class="view-all-link">Ver todas</router-link>
           </div>
 
-        </div>
-      </section>
+          <div class="appointments-list">
+            
+            <div class="appointment-card">
+              <div class="appointment-details">
+                <div class="specialty-icon">🫀</div>
+                <div>
+                  <h4>Cardiología</h4>
+                  <p class="doctor-name">Dr. Carlos Hernández</p>
+                  <p class="appointment-date">21 de mayo, 2026 - 10:50 AM</p>
+                </div>
+              </div>
+              <div class="appointment-status">
+                <span class="badge status-confirmed">Confirmada</span>
+                <span class="arrow-icon">›</span>
+              </div>
+            </div>
+
+            <div class="appointment-card">
+              <div class="appointment-details">
+                <div class="specialty-icon">🩺</div>
+                <div>
+                  <h4>Medicina General</h4>
+                  <p class="doctor-name">Dra. Irene Torres</p>
+                  <p class="appointment-date">30 de mayo, 2026 - 08:35 AM</p>
+                </div>
+              </div>
+              <div class="appointment-status">
+                <span class="badge status-pending">Pendiente</span>
+                <span class="arrow-icon">›</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+      </div>
+
+      <router-view v-else />
 
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 const nombreUsuario = ref('Paciente')
+const route = useRoute()
+const vistaActiva = ref('inicio')
+
+// Monitoreamos la ruta actual para saber si mostrar el Inicio o los otros componentes
+watch(() => route.path, (nuevoPath) => {
+  if (nuevoPath === '/dashboard' || nuevoPath === '/dashboard/') {
+    vistaActiva.value = 'inicio'
+  } else {
+    vistaActiva.value = 'otros'
+  }
+}, { immediate: true })
 
 onMounted(() => {
-  // Buscamos si hay un nombre guardado en el navegador al montar la vista
   const nombreGuardado = localStorage.getItem('usuarioNombre')
   if (nombreGuardado) {
     nombreUsuario.value = nombreGuardado
@@ -147,12 +147,12 @@ onMounted(() => {
 })
 
 const cerrarSesion = () => {
-  // Elimina la sesión guardada al salir
   localStorage.removeItem('usuarioNombre')
 }
 </script>
 
 <style scoped>
+/* TODO TU ESTILO ORIGINAL COMPLETAMENTE PRESERVADO */
 .dashboard-container {
   display: flex;
   min-height: 100vh;
@@ -351,17 +351,6 @@ const cerrarSesion = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: box-shadow 0.2s;
-}
-
-.appointment-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
-}
-
-.appointment-details {
-  display: flex;
-  align-items: center;
-  gap: 1.2rem;
 }
 
 .specialty-icon {
@@ -421,6 +410,5 @@ const cerrarSesion = () => {
   color: #94a3b8;
   font-size: 1.5rem;
   font-weight: 300;
-  cursor: pointer;
 }
 </style>

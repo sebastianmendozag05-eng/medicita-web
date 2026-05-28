@@ -2,8 +2,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue' 
 import ForgotPassword from '../views/ForgotPassword.vue' 
-// 1. Importamos el nuevo Dashboard
-import DashboardPacienteView from '../views/DashboardPacienteView.vue' 
+
+// Vistas del paciente (según tus capturas reales de pantalla)
+import DashboardPacienteView from '../views/paciente/DashboardPacienteView.vue' 
+import PerfilView from '../views/paciente/PerfilView.vue'
+import CitasView from '../views/paciente/CitasView.vue'
+import HistorialView from '../views/paciente/HistorialView.vue'
+import NotificacionesView from '../views/paciente/NotificacionesView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -23,11 +28,31 @@ const router = createRouter({
       name: 'recuperar',
       component: ForgotPassword 
     },
-    // 2. Agregamos la ruta del Dashboard
     {
       path: '/dashboard', 
-      name: 'dashboard-paciente',
-      component: DashboardPacienteView 
+      component: DashboardPacienteView,
+      children: [
+        {
+          path: 'perfil', 
+          name: 'dashboard-perfil',
+          component: PerfilView
+        },
+        {
+          path: 'citas', 
+          name: 'dashboard-citas',
+          component: CitasView
+        },
+        {
+          path: 'historial', 
+          name: 'dashboard-historial',
+          component: HistorialView
+        },
+        {
+          path: 'notificaciones', 
+          name: 'dashboard-notificaciones',
+          component: NotificacionesView
+        }
+      ]
     }
   ]
 })
