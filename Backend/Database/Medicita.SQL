@@ -167,7 +167,7 @@ INSERT INTO EXPEDIENTE VALUES
 
 -- 7. Agendar una Cita (Para mañana a las 10:00 AM)
 INSERT INTO CITA 
-VALUES (NULL,1, 1, NULL, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 'Chequeo de presión arterial', 'confirmada', NOW());
+VALUES (NULL,1, 1, NULL, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 'Chequeo de presión arterial', 'confirmada', NOW(),NULL);
 
 -- /*INSERTAR MEDICOS */
 -- INSERT INTO MEDICO  VALUES
@@ -204,7 +204,6 @@ VALUES (NULL,1, 1, NULL, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 'Chequ
 /*FUNCIONES, PROCEDIMIENTOS ALMACENADOS Y TRIGGERS */
 
 DELIMITER //
-
 CREATE TRIGGER trg_completar_cita
 AFTER INSERT ON NOTA_CONSULTA
 FOR EACH ROW
@@ -219,8 +218,8 @@ DELIMITER ;
 
 
 -- PRUEBA A: Insertar una nota de consulta para la cita que agendamos
-INSERT INTO NOTA_CONSULTA (citId, medId, pacId, notaAsistencia, notaDiagnostico, notaReceta) 
-VALUES (1, 1, 1, TRUE, 'Paciente estable. Presión 120/80. Peso normal.', 'Continuar con Losartán 1 cada 24h.');
+INSERT INTO NOTA_CONSULTA 
+VALUES (NULL,1, 1, 1, TRUE, 'Paciente estable. Presión 120/80. Peso normal.', 'Continuar con Losartán 1 cada 24h.',now());
 
 -- PRUEBA B
 SELECT c.citId, p.pacNombre, m.medNombre, c.citFecha, c.citHora, c.citEstatus 
@@ -231,7 +230,7 @@ INNER JOIN MEDICO m ON c.medId = m.medId;
 -- PRUEBA C
 SELECT 
     p.pacNombre AS Paciente, 
-    p.pacEdad AS Edad, -- (Ojo, si usaste fechaNac, aquí puedes calcular la edad)
+    p.pacFechaNac AS Edad, -- (Ojo, si usaste fechaNac, aquí puedes calcular la edad)
     e.expAlergias AS Alergias,
     e.expPadecimientos AS Cronicos,
     n.notaFechaCreacion AS FechaConsulta,
