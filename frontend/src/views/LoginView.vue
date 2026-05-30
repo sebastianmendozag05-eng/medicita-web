@@ -84,30 +84,49 @@ const iniciarSesion = () => {
 
   console.log('Enviando datos al backend:', payload)
   
-  const correoRegistrado = localStorage.getItem('usuarioCorreo')
-
-  // Si el usuario en el Login coincide con el del registro local, dejamos intactos sus datos
-  if (correoRegistrado && correoRegistrado.toLowerCase() === credenciales.value.correo.toLowerCase()) {
-    console.log('Usuario verificado con éxito, manteniendo variables del registro.')
-  } else {
-    // Si entra directo sin pasar por el registro, metemos datos fallback por seguridad
-    const parteCorreo = credenciales.value.correo.split('@')[0]
-    const nombreLimpio = parteCorreo.replace('.', ' ')
-    const nombreSimulado = nombreLimpio.charAt(0).toUpperCase() + nombreLimpio.slice(1)
-
-    localStorage.setItem('usuarioNombre', nombreSimulado)
-    localStorage.setItem('usuarioApePat', '')
-    localStorage.setItem('usuarioApeMat', '')
-    localStorage.setItem('usuarioCorreo', credenciales.value.correo) 
-    localStorage.setItem('usuarioTelefono', '+52 55 1234 5678')
-    localStorage.setItem('usuarioNss', '12345678901')
-    localStorage.setItem('usuarioSexo', 'Masculino')
-    localStorage.setItem('usuarioFechaNac', '1998-05-20')
-    localStorage.setItem('usuarioPeso', '70')
-    localStorage.setItem('usuarioEstatura', '1.70')
-  }
+  const correoIngresado = credenciales.value.correo.toLowerCase()
   
-  router.push('/dashboard')
+  // --- CONTROL DE FLUJO ESTRICTO ---
+  // Si el correo incluye la palabra "medico", es un doctor pase lo que pase
+  const esMedico = correoIngresado.includes('medico')
+
+  if (esMedico) {
+    console.log('Acceso Médico detectado. Forzando entorno de doctor...')
+    
+    // Guardamos los datos explícitos del médico en el almacenamiento local
+    localStorage.setItem('usuarioRol', 'medico')
+    localStorage.setItem('usuarioNombre', 'Luis')
+    localStorage.setItem('usuarioCorreo', credenciales.value.correo)
+    
+    // Redirección directa a la ruta secundaria declarada en el router
+    router.push('/medico/inicio')
+  } else {
+    console.log('Acceso Paciente detectado. Configurando entorno de paciente...')
+    
+    localStorage.setItem('usuarioRol', 'paciente')
+    
+    const correoRegistrado = localStorage.getItem('usuarioCorreo')
+    
+    // Si entra con un correo de paciente diferente al registrado localmente, reescribimos datos simulados
+    if (!correoRegistrado || correoRegistrado.toLowerCase() !== correoIngresado) {
+      const parteCorreo = credenciales.value.correo.split('@')[0]
+      const nombreLimpio = parteCorreo.replace('.', ' ')
+      const nombreSimulado = nombreLimpio.charAt(0).toUpperCase() + nombreLimpio.slice(1)
+
+      localStorage.setItem('usuarioNombre', nombreSimulado)
+      localStorage.setItem('usuarioApePat', '')
+      localStorage.setItem('usuarioApeMat', '')
+      localStorage.setItem('usuarioCorreo', credenciales.value.correo) 
+      localStorage.setItem('usuarioTelefono', '+52 55 1234 5678')
+      localStorage.setItem('usuarioNss', '12345678901')
+      localStorage.setItem('usuarioSexo', 'Masculino')
+      localStorage.setItem('usuarioFechaNac', '1998-05-20')
+      localStorage.setItem('usuarioPeso', '70')
+      localStorage.setItem('usuarioEstatura', '1.70')
+    }
+    
+    router.push('/dashboard')
+  }
 }
 </script>
 
