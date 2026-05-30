@@ -25,11 +25,7 @@ CREATE TABLE MEDICO
     medCorreo				VARCHAR(80) 	NOT NULL,
     medCedula               VARCHAR(20) 	NOT NULL,
     medEstatus				INT 			NOT NULL,
-    medFechaReg				TIMESTAMP 		NOT NULL,
-    medDiasDisponibles      VARCHAR(100),
-    medDiasNoDisponibles    VARCHAR(100),
-    medTurnos               VARCHAR(100),
-
+    medFechaReg				TIMESTAMP 		NOT NULL
 );
 
 -- TABLA ESPECIALIDAD
@@ -91,9 +87,14 @@ CREATE TABLE PACIENTE
 -- TABLA ASISTENTE MEDICO (Recepcionista)
 CREATE TABLE ASISTENTE_MEDICO (
     astId           INT             NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    usrId           INT             NOT NULL,
     astNombre       VARCHAR(100)    NOT NULL,
-    FOREIGN KEY (usrId) REFERENCES USUARIO(usrId)
+    astApePat        VARCHAR(50)     NOT NULL,
+    astApeMat        VARCHAR(50)     NULL,
+    astEdad         INT             NOT NULL,
+    astCorreo       VARCHAR(80)    NOT NULL,
+    astTelefono     VARCHAR(20)     NOT NULL,
+    astEstatus      INT             NOT NULL,
+    astFechaReg     TIMESTAMP       NOT NULL
 );
 
 -- TABLA EXPEDIENTE (Relación "Tiene" - 1:1 con Paciente)
@@ -112,7 +113,7 @@ CREATE TABLE CITA(
     medId					INT 			NOT NULL, -- SABER EL TURNO DEL MEDICO PARA ASIGNAR LA CITA
     pacId 					INT 			NOT NULL,
 	astId           		INT             NULL, -- Puede ser NULL si la agenda el paciente
-    citFecha				TIMESTAMP 			NULL,
+    citFecha				TIMESTAMP 		NOT	NULL,
     citHora 				TIME 			NOT NULL,
     citMotivo 				VARCHAR(200)	NOT NULL,
     citEstatus				ENUM('agendada', 'confirmada', 'completada', 'cancelada') NOT NULL DEFAULT 'agendada',
@@ -165,8 +166,8 @@ INSERT INTO EXPEDIENTE VALUES
 (NULL,1, 'Penicilina', 'Hipertensión leve', 'Losartán 50mg');
 
 -- 7. Agendar una Cita (Para mañana a las 10:00 AM)
-INSERT INTO CITA (medId, pacId, astId, citFecha, citHora, citMotivo, citEstatus, citFechaReg) 
-VALUES (1, 1, NULL, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 'Chequeo de presión arterial', 'confirmada', NOW());
+INSERT INTO CITA 
+VALUES (NUll,1, 1, NULL, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 'Chequeo de presión arterial', 'confirmada', NOW());
 
 -- /*INSERTAR MEDICOS */
 -- INSERT INTO MEDICO  VALUES
