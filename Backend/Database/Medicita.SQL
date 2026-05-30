@@ -167,7 +167,7 @@ INSERT INTO EXPEDIENTE VALUES
 
 -- 7. Agendar una Cita (Para mañana a las 10:00 AM)
 INSERT INTO CITA 
-VALUES (NUll,1, 1, NULL, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 'Chequeo de presión arterial', 'confirmada', NOW());
+VALUES (NULL,1, 1, NULL, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 'Chequeo de presión arterial', 'confirmada', NOW());
 
 -- /*INSERTAR MEDICOS */
 -- INSERT INTO MEDICO  VALUES
