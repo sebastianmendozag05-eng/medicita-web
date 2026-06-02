@@ -1,93 +1,227 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
-const medicoNombre = ref('Luis')
+const router = useRouter()
+const medicoNombre = ref('Médico')
 const fechaActual = ref('')
 
-const citasHoy = ref([
-  { id: 1, hora: '10:00 AM', paciente: 'María Geerdes', detalle: 'Control cardiológico' },
-  { id: 2, hora: '11:00 AM', paciente: 'Juan Pérez', detalle: 'Primera consulta' },
-  { id: 3, hora: '12:00 PM', paciente: 'Ana Klosit', detalle: 'Seguimiento' },
-  { id: 4, hora: '02:00 PM', paciente: 'Carlos Méndez', detalle: 'Control anual' }
-])
+// ARREGLO COMPLETAMENTE VACÍO PARA MÉDICOS NUEVOS
+const citasHoy = ref([])
 
+// ESTADÍSTICAS INICIALIZADAS ESTRICTAMENTE EN CERO
 const estadisticas = ref({
-  citasHoy: 12,
-  citasSemana: 48,
-  citasMes: 128
+  citasHoy: 0,
+  citasSemana: 0,
+  citasMes: 0
 })
 
 onMounted(() => {
+  // Leer el nombre real guardado al registrarse
+  const nombreGuardado = localStorage.getItem('usuarioNombre')
+  if (nombreGuardado && nombreGuardado !== 'Medico' && nombreGuardado !== 'M') {
+    medicoNombre.value = nombreGuardado
+  }
+
+  // Generar la fecha del día de hoy
   const opciones = { day: 'numeric', month: 'long', year: 'numeric' }
   fechaActual.value = new Date().toLocaleDateString('es-ES', opciones)
 })
+
+const cerrarSesion = () => {
+  localStorage.clear()
+  router.push('/login')
+}
 </script>
 
 <template>
-  <div class="contenedor-dashboard">
+  <div class="pantalla-layout">
     
-    <div class="cabecera-medico">
-      <h1 class="saludo-principal">Bienvenido, Dr. {{ medicoNombre }} 👋</h1>
-      <span class="fecha-cabecera">{{ fechaActual }}</span>
-    </div>
-
-    <div class="distribucion-paneles">
+    <aside class="sidebar-izquierdo">
+      <div class="brand">
+        <span class="logo-icon">+</span>
+        <h1>MediCita</h1>
+      </div>
       
-      <div class="bloque-principal-citas">
-        <h2 class="subtitulo-seccion">Citas de hoy</h2>
+      <nav class="menu-navegacion">
+        <router-link to="/medico/inicio" class="enlace-menu activo">
+          <span class="icono">🏠</span> Inicio
+        </router-link>
+        <router-link to="/medico/perfil" class="enlace-menu">
+          <span class="icono">👤</span> Mi Perfil
+        </router-link>
+        <router-link to="/medico/agenda" class="enlace-menu">
+          <span class="icono">📅</span> Mis Citas
+        </router-link>
+        <router-link to="/medico/historiales" class="enlace-menu">
+          <span class="icono">📂</span> Historial Médico
+        </router-link>
+      </nav>
+
+      <div class="sidebar-pie">
+        <button @click="cerrarSesion" class="btn-cerrar-sesion">
+          🚪 Cerrar Sesión
+        </button>
+      </div>
+    </aside>
+
+    <div class="contenedor-dashboard">
+      
+      <div class="cabecera-medico">
+        <h1 class="saludo-principal">Bienvenido, Dr. {{ medicoNombre }} 👋</h1>
+        <span class="fecha-cabecera">{{ fechaActual }}</span>
+      </div>
+
+      <div class="distribucion-paneles">
         
-        <div class="tabla-citas">
-          <div v-for="cita in citasHoy" :key="cita.id" class="fila-cita">
-            <div class="celda-hora">{{ cita.hora }}</div>
-            <div class="celda-detalles">
-              <span class="paciente-nombre">{{ cita.paciente }}</span>
-              <span class="paciente-motivo">{{ cita.detalle }}</span>
+        <div class="bloque-principal-citas">
+          <h2 class="subtitulo-seccion">Citas de hoy</h2>
+          
+          <div v-if="citasHoy.length > 0" class="tabla-citas">
+            <div v-for="cita in citasHoy" :key="cita.id" class="fila-cita">
+              <div class="celda-hora">{{ cita.hora }}</div>
+              <div class="celda-detalles">
+                <span class="paciente-nombre">{{ cita.paciente }}</span>
+                <span class="paciente-motivo">{{ cita.detalle }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="contenedor-sin-citas">
+            <div class="icono-calendario-vacio">📅</div>
+            <p class="texto-sin-citas">No tienes citas programadas por el momento.</p>
+          </div>
+
+          <button class="btn-agenda-enlace">Ver agenda completa</button>
+        </div>
+
+        <div class="bloque-lateral-stats">
+          <h2 class="subtitulo-seccion">Estadísticas</h2>
+          
+          <div class="tarjetero-stats">
+            <div class="tarjeta-mini-stat">
+              <div class="icono-cuadrado color-azul">📋</div>
+              <div class="info-stat-num">
+                <span class="numero-stat">{{ estadisticas.citasHoy }}</span>
+                <span class="leyenda-stat">Citas hoy</span>
+              </div>
+            </div>
+
+            <div class="tarjeta-mini-stat">
+              <div class="icono-cuadrado color-verde">🏥</div>
+              <div class="info-stat-num">
+                <span class="numero-stat">{{ estadisticas.citasSemana }}</span>
+                <span class="leyenda-stat">Citas esta semana</span>
+              </div>
+            </div>
+
+            <div class="tarjeta-mini-stat">
+              <div class="icono-cuadrado color-morado">🕒</div>
+              <div class="info-stat-num">
+                <span class="numero-stat">{{ estadisticas.citasMes }}</span>
+                <span class="leyenda-stat">Citas este mes</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <button class="btn-agenda-enlace">Ver agenda completa</button>
       </div>
-
-      <div class="bloque-lateral-stats">
-        <h2 class="subtitulo-seccion">Estadísticas</h2>
-        
-        <div class="tarjetero-stats">
-          <div class="tarjeta-mini-stat">
-            <div class="icono-cuadrado color-azul">📋</div>
-            <div class="info-stat-num">
-              <span class="numero-stat">{{ estadisticas.citasHoy }}</span>
-              <span class="leyenda-stat">Citas hoy</span>
-            </div>
-          </div>
-
-          <div class="tarjeta-mini-stat">
-            <div class="icono-cuadrado color-verde">🏥</div>
-            <div class="info-stat-num">
-              <span class="numero-stat">{{ estadisticas.citasSemana }}</span>
-              <span class="leyenda-stat">Citas esta semana</span>
-            </div>
-          </div>
-
-          <div class="tarjeta-mini-stat">
-            <div class="icono-cuadrado color-morado">🕒</div>
-            <div class="info-stat-num">
-              <span class="numero-stat">{{ estadisticas.citasMes }}</span>
-              <span class="leyenda-stat">Citas este mes</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </div>
+
   </div>
 </template>
 
 <style scoped>
+.pantalla-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+.sidebar-izquierdo {
+  width: 260px;
+  background-color: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 2.5rem;
+}
+.logo-icon {
+  background-color: #0d8a72;
+  color: white;
+  font-weight: bold;
+  font-size: 1.3rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+.brand h1 {
+  color: #0d8a72;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+.menu-navegacion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-grow: 1;
+}
+.enlace-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.85rem 1rem;
+  color: #64748b;
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+.enlace-menu:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+.enlace-menu.activo {
+  background-color: #e6f4f1;
+  color: #0d8a72;
+}
+.sidebar-pie {
+  margin-top: auto;
+}
+.btn-cerrar-sesion {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #b45309;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 10px;
+  transition: background-color 0.2s;
+}
+.btn-cerrar-sesion:hover {
+  background-color: #fef3c7;
+}
 .contenedor-dashboard {
+  flex-grow: 1;
   padding: 24px;
   background-color: #f8fafc;
-  min-height: 100vh;
+  box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 .cabecera-medico {
@@ -130,6 +264,25 @@ onMounted(() => {
   color: #1e293b;
   margin-top: 0;
   margin-bottom: 20px;
+}
+.contenedor-sin-citas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+.icono-calendario-vacio {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.7;
+}
+.texto-sin-citas {
+  font-size: 15px;
+  color: #64748b;
+  margin: 0;
+  font-weight: 500;
 }
 .fila-cita {
   display: flex;
@@ -219,5 +372,7 @@ onMounted(() => {
 }
 @media (max-width: 768px) {
   .distribucion-paneles { grid-template-columns: 1fr; }
+  .pantalla-layout { flex-direction: column; }
+  .sidebar-izquierdo { width: 100%; border-right: none; border-bottom: 1px solid #e2e8f0; }
 }
 </style>

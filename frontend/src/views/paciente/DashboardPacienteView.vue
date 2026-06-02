@@ -50,7 +50,7 @@
             <div class="metric-card">
               <div class="metric-icon-wrapper blue">🗓️</div>
               <div class="metric-info">
-                <h3>3</h3>
+                <h3>{{ citas.length }}</h3>
                 <p>Próximas citas</p>
               </div>
             </div>
@@ -58,7 +58,7 @@
             <div class="metric-card">
               <div class="metric-icon-wrapper red">❤️</div>
               <div class="metric-info">
-                <h3>2</h3>
+                <h3>{{ totalConsultas }}</h3>
                 <p>Consultas</p>
               </div>
             </div>
@@ -66,7 +66,7 @@
             <div class="metric-card">
               <div class="metric-icon-wrapper purple">📄</div>
               <div class="metric-info">
-                <h3>5</h3>
+                <h3>{{ totalHistoriales }}</h3>
                 <p>Historiales</p>
               </div>
             </div>
@@ -82,32 +82,32 @@
 
           <div class="appointments-list">
             
-            <div class="appointment-card">
-              <div class="appointment-details">
-                <div class="specialty-icon">🫀</div>
-                <div>
-                  <h4>Cardiología</h4>
-                  <p class="doctor-name">Dr. Carlos Hernández</p>
-                  <p class="appointment-date">21 de mayo, 2026 - 10:50 AM</p>
-                </div>
-              </div>
-              <div class="appointment-status">
-                <span class="badge status-confirmed">Confirmada</span>
-                <span class="arrow-icon">›</span>
-              </div>
+            <div v-if="citas.length === 0" class="no-appointments-card">
+              <span class="calendar-empty-icon">📅</span>
+              <p class="no-appointments-text">No tienes citas programadas por el momento.</p>
             </div>
 
-            <div class="appointment-card">
+            <div 
+              v-else
+              v-for="cita in citas" 
+              :key="cita.id" 
+              class="appointment-card"
+            >
               <div class="appointment-details">
-                <div class="specialty-icon">🩺</div>
+                <div class="specialty-icon">{{ cita.icono }}</div>
                 <div>
-                  <h4>Medicina General</h4>
-                  <p class="doctor-name">Dra. Irene Torres</p>
-                  <p class="appointment-date">30 de mayo, 2026 - 08:35 AM</p>
+                  <h4>{{ cita.especialidad }}</h4>
+                  <p class="doctor-name">{{ cita.doctor }}</p>
+                  <p class="appointment-date">{{ cita.fecha }}</p>
                 </div>
               </div>
               <div class="appointment-status">
-                <span class="badge status-pending">Pendiente</span>
+                <span 
+                  class="badge" 
+                  :class="cita.estado === 'confirmada' ? 'status-confirmed' : 'status-pending'"
+                >
+                  {{ cita.estado === 'confirmada' ? 'Confirmada' : 'Pendiente' }}
+                </span>
                 <span class="arrow-icon">›</span>
               </div>
             </div>
@@ -130,7 +130,14 @@ const nombreUsuario = ref('Paciente')
 const route = useRoute()
 const vistaActiva = ref('inicio')
 
-// Monitoreamos la ruta actual para saber si mostrar el Inicio o los otros componentes
+// 1. LOS CONTADORES INICIAN EN 0 PARA USUARIOS NUEVOS
+const totalConsultas = ref(0)
+const totalHistoriales = ref(0)
+
+// 2. EL ARREGLO EMPIEZA VACÍO. AL NO HABER CITAS, SE MUESTRA EL MENSAJE EN LUGAR DE DATOS FALSOS
+const citas = ref([])
+
+// Monitoreamos la ruta actual para alternar entre el Inicio y las sub-vistas del router
 watch(() => route.path, (nuevoPath) => {
   if (nuevoPath === '/dashboard' || nuevoPath === '/dashboard/') {
     vistaActiva.value = 'inicio'
@@ -139,11 +146,31 @@ watch(() => route.path, (nuevoPath) => {
   }
 }, { immediate: true })
 
-onMounted(() => {
+onMounted(async () => {
+  // Obtener el nombre almacenado en el login
   const nombreGuardado = localStorage.getItem('usuarioNombre')
   if (nombreGuardado) {
     nombreUsuario.value = nombreGuardado
   }
+  
+  // ==========================================
+  // CONEXIÓN FUTURA CON EL BACKEND (API)
+  // ==========================================
+  // Cuando tus compañeros terminen las rutas del servidor, aquí harás la petición:
+  /*
+  try {
+    const idUsuario = localStorage.getItem('usuarioId')
+    const res = await fetch(`http://localhost:3000/api/citas/${idUsuario}`)
+    const datosReales = await res.json()
+    
+    // Al asignarle los datos del servidor, el HTML se actualizará solo
+    citas.value = datosReales.listaCitas 
+    totalConsultas.value = datosReales.cantidadConsultas
+    totalHistoriales.value = datosReales.cantidadHistoriales
+  } catch (error) {
+    console.error("Error cargando los datos reales:", error)
+  }
+  */
 })
 
 const cerrarSesion = () => {
@@ -152,7 +179,7 @@ const cerrarSesion = () => {
 </script>
 
 <style scoped>
-/* TODO TU ESTILO ORIGINAL COMPLETAMENTE PRESERVADO */
+/* ESTILOS ORIGINALES PRESERVADOS AL 100% */
 .dashboard-container {
   display: flex;
   min-height: 100vh;
@@ -351,6 +378,31 @@ const cerrarSesion = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* NUEVOS ESTILOS AGREGADOS PARA LA TARJETA CUANDO NO HAY CITAS */
+.no-appointments-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.calendar-empty-icon {
+  font-size: 2.5rem;
+  opacity: 0.6;
+}
+
+.no-appointments-text {
+  color: #64748b;
+  font-size: 1rem;
+  margin: 0;
 }
 
 .specialty-icon {

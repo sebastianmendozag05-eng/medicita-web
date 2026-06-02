@@ -84,21 +84,30 @@ const iniciarSesion = () => {
 
   console.log('Enviando datos al backend:', payload)
   
-  const correoIngresado = credenciales.value.correo.toLowerCase()
+  // 1. Convertimos a minúsculas
+  let correoIngresado = credenciales.value.correo.toLowerCase()
   
-  // --- CONTROL DE FLUJO ESTRICTO ---
-  // Si el correo incluye la palabra "medico", es un doctor pase lo que pase
-  const esMedico = correoIngresado.includes('medico')
+  // 2. ELIMINAMOS ACENTOS (médico -> medico)
+  correoIngresado = correoIngresado.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  
+  // 3. OBTENEMOS EL ROL DEL LOCALSTORAGE SI EXISTE
+  const rolRegistrado = localStorage.getItem('usuarioRol')
+  
+  // 4. CONTROL DE FLUJO FLEXIBLE Y SEGURO
+  const esMedico = rolRegistrado === 'medico' || correoIngresado.includes('medico')
 
   if (esMedico) {
     console.log('Acceso Médico detectado. Forzando entorno de doctor...')
     
-    // Guardamos los datos explícitos del médico en el almacenamiento local
     localStorage.setItem('usuarioRol', 'medico')
-    localStorage.setItem('usuarioNombre', 'Luis')
+    
+    const nombreActual = localStorage.getItem('usuarioNombre')
+    if (!nombreActual || nombreActual === 'Medico' || nombreActual === 'M') {
+      localStorage.setItem('usuarioNombre', 'Carlos') 
+    }
     localStorage.setItem('usuarioCorreo', credenciales.value.correo)
     
-    // Redirección directa a la ruta secundaria declarada en el router
+    // REDIRECCIÓN CORRECTA Y EXCLUSIVA DEL MÉDICO
     router.push('/medico/inicio')
   } else {
     console.log('Acceso Paciente detectado. Configurando entorno de paciente...')
@@ -107,7 +116,6 @@ const iniciarSesion = () => {
     
     const correoRegistrado = localStorage.getItem('usuarioCorreo')
     
-    // Si entra con un correo de paciente diferente al registrado localmente, reescribimos datos simulados
     if (!correoRegistrado || correoRegistrado.toLowerCase() !== correoIngresado) {
       const parteCorreo = credenciales.value.correo.split('@')[0]
       const nombreLimpio = parteCorreo.replace('.', ' ')
@@ -125,6 +133,7 @@ const iniciarSesion = () => {
       localStorage.setItem('usuarioEstatura', '1.70')
     }
     
+    // REDIRECCIÓN AL DASHBOARD DEL PACIENTE
     router.push('/dashboard')
   }
 }

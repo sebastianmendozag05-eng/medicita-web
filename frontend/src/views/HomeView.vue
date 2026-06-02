@@ -212,8 +212,8 @@ const registrarUsuario = () => {
       password: formulario.value.password
     }
 
-    // MANDAMOS TODO LIMPIO AL LOCALSTORAGE CON LAS LLAVES EXACTAS
     localStorage.setItem('usuarioNombre', formulario.value.nombre)
+    localStorage.setItem('usuarioRol', 'paciente')
     localStorage.setItem('usuarioApePat', formulario.value.apePat)
     localStorage.setItem('usuarioApeMat', formulario.value.apeMat || '')
     localStorage.setItem('usuarioCorreo', formulario.value.correo)
@@ -226,8 +226,6 @@ const registrarUsuario = () => {
     
     console.log('Paciente registrado y guardado localmente:', payload)
     alert('¡Registro de PACIENTE exitoso! Ahora inicia sesión.')
-    
-    // Redirección directa al Login
     router.push('/login')
 
   } else {
@@ -243,6 +241,11 @@ const registrarUsuario = () => {
       medTurnos: formulario.value.turnos,
       especialidadId: formulario.value.especialidadId
     }
+
+    localStorage.setItem('usuarioNombre', formulario.value.nombre)
+    localStorage.setItem('usuarioRol', 'medico')
+    localStorage.setItem('usuarioCorreo', formulario.value.correo)
+    
     console.log('Médico registrado:', payload)
     alert('¡Registro de MÉDICO exitoso! Ahora inicia sesión.')
     router.push('/login')
