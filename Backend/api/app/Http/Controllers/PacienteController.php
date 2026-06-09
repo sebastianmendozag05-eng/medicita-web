@@ -2,47 +2,64 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Paciente;
 use Illuminate\Http\Request;
 
 class PacienteController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        return response()->json(Paciente::all());
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'pacNombre'   => 'required|string|max:50',
+            'pacApePat'   => 'required|string|max:50',
+            'pacSexo'     => 'required|string',
+            'pacFechaNac' => 'required|date',
+            'pacNSS'      => 'required|string|max:20',
+            'pacCorreo'   => 'required|email|max:80',
+            'pacTelefono' => 'required|string|max:20',
+            'pacPeso'     => 'required|numeric',
+            'pacEstatura' => 'required|numeric',
+        ]);
+
+        $paciente = Paciente::create([
+            ...$request->only([
+                'pacNombre', 'pacApePat', 'pacApeMat', 'pacSexo',
+                'pacFechaNac', 'pacNSS', 'pacCorreo', 'pacTelefono',
+                'pacPeso', 'pacEstatura'
+            ]),
+            'pacEstatus'  => 1,
+            'pacFechaReg' => now(),
+        ]);
+
+        return response()->json($paciente, 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function show($id)
     {
-        //
+        $paciente = Paciente::with(['citas', 'expediente'])->findOrFail($id);
+        return response()->json($paciente);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function update(Request $request, $id)
     {
-        //
+        $paciente = Paciente::findOrFail($id);
+        $paciente->update($request->only([
+            'pacNombre', 'pacApePat', 'pacApeMat', 'pacSexo',
+            'pacFechaNac', 'pacNSS', 'pacCorreo', 'pacTelefono',
+            'pacPeso', 'pacEstatura', 'pacEstatus'
+        ]));
+        return response()->json($paciente);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function destroy($id)
     {
-        //
+        $paciente = Paciente::findOrFail($id);
+        $paciente->update(['pacEstatus' => 0]);
+        return response()->json(['message' => 'Paciente desactivado']);
     }
 }

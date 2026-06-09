@@ -7,6 +7,10 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\MedicoController;
 use App\Http\Controllers\PacienteController;
+use App\Http\Controllers\ExpedienteController;
+use App\Http\Controllers\NotaConsultaController;
+use App\Http\Controllers\TurnoMedicoController;
+use App\Http\Controllers\AusenciaMedicoController;
 
 Route::post('/register', [RegisterController::class, 'store']);
 Route::post('/login', [LoginController::class, 'store']);
@@ -24,4 +28,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('citas', CitaController::class);
     Route::apiResource('medicos', MedicoController::class);
     Route::apiResource('pacientes', PacienteController::class);
+
+    // Expediente
+    Route::post('/expediente', [ExpedienteController::class, 'store']);
+    Route::get('/expediente/{pacId}', [ExpedienteController::class, 'show']);
+    Route::put('/expediente/{pacId}', [ExpedienteController::class, 'update']);
+
+    // Notas de consulta
+    Route::post('/notas', [NotaConsultaController::class, 'store']);
+    Route::get('/notas/paciente/{pacId}', [NotaConsultaController::class, 'showByPaciente']);
+
+    // Turnos
+    Route::post('/turnos', [TurnoMedicoController::class, 'store']);
+    Route::put('/turnos/{medId}', [TurnoMedicoController::class, 'update']);
+
+    // Ausencias
+    Route::get('/ausencias/{medId}', [AusenciaMedicoController::class, 'index']);
+    Route::post('/ausencias', [AusenciaMedicoController::class, 'store']);
+    Route::delete('/ausencias/{id}', [AusenciaMedicoController::class, 'destroy']);
 });
