@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Cita;
 use Illuminate\Http\Request;
+use App\Mail\CitaConfirmada;
+use Illuminate\Support\Facades\Mail;
 
 class CitaController extends Controller
 {
@@ -34,6 +36,9 @@ class CitaController extends Controller
             'citEstatus' => 'agendada',
             'citFechaReg'=> now(),
         ]);
+
+        $cita->load(['medico', 'paciente']);
+        Mail::to($cita->paciente->pacCorreo)->send(new CitaConfirmada($cita));
 
         return response()->json($cita, 201);
     }
