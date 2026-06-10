@@ -11,6 +11,8 @@ use App\Http\Controllers\ExpedienteController;
 use App\Http\Controllers\NotaConsultaController;
 use App\Http\Controllers\TurnoMedicoController;
 use App\Http\Controllers\AusenciaMedicoController;
+use App\Http\Controllers\AgendaController;
+use App\Http\Controllers\ReporteController;
 
 Route::post('/register', [RegisterController::class, 'store']);
 Route::post('/login', [LoginController::class, 'store']);
@@ -46,4 +48,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/ausencias/{medId}', [AusenciaMedicoController::class, 'index']);
     Route::post('/ausencias', [AusenciaMedicoController::class, 'store']);
     Route::delete('/ausencias/{id}', [AusenciaMedicoController::class, 'destroy']);
+    // Agenda
+    Route::get('/agenda/medico/{medId}', [AgendaController::class, 'porMedico']);
+    Route::get('/agenda/medico/{medId}/semana', [AgendaController::class, 'semana']);
+    Route::get('/agenda/todos', [AgendaController::class, 'todosMedicos']);
+    // Reportes
+    Route::get('/reportes/resumen', [ReporteController::class, 'resumen']);
+    Route::get('/reportes/periodo', [ReporteController::class, 'porPeriodo']);
+    Route::get('/reportes/medico/{medId}', [ReporteController::class, 'porMedico']);
 });
