@@ -1,3 +1,4 @@
+
 <template>
   <main class="container">
     <div class="form-wrapper">
@@ -9,7 +10,10 @@
       
       <h2 class="title">Bienvenido de nuevo</h2>
       <p class="subtitle">Inicie sesión para continuar</p>
-
+ 
+      <!-- Mensaje de error del servidor -->
+      <div v-if="errorMsg" class="error-banner">{{ errorMsg }}</div>
+ 
       <form @submit.prevent="iniciarSesion">
         
         <div class="form-group">
@@ -22,7 +26,7 @@
             placeholder="ejemplo@correo.com" 
           />
         </div>
-
+ 
         <div class="form-group password-container">
           <label for="password">Contraseña</label>
           <div class="input-with-icon">
@@ -38,18 +42,18 @@
             </span>
           </div>
         </div>
-
+ 
         <div class="forgot-link-container">
           <router-link to="/recuperar" class="forgot-password">
             ¿Olvidaste tu contraseña?
           </router-link>
         </div>
-
-        <button type="submit" :disabled="!formularioValido" :class="{ 'btn-deshabilitado': !formularioValido }">
-          Iniciar sesión
+ 
+        <button type="submit" :disabled="!formularioValido || cargando" :class="{ 'btn-deshabilitado': !formularioValido || cargando }">
+          {{ cargando ? 'Iniciando sesión...' : 'Iniciar sesión' }}
         </button>
       </form>
-
+ 
       <div class="register-redirect">
         ¿No tienes cuenta? <router-link to="/">Regístrate aquí</router-link>
       </div>
@@ -57,88 +61,71 @@
     </div>
   </main>
 </template>
-
+ 
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-
+ 
 const router = useRouter()
 const mostrarPass = ref(false)
-
+const cargando = ref(false)
+const errorMsg = ref('')
+ 
 const credenciales = ref({
   correo: '',
   password: ''
 })
-
+ 
 const formularioValido = computed(() => {
   return credenciales.value.correo.trim() !== '' && credenciales.value.password.length >= 4
 })
-
-const iniciarSesion = () => {
-  if (!formularioValido.value) return
-
-  const payload = {
-    correo: credenciales.value.correo,
-    password: credenciales.value.password
-  }
-
-  console.log('Enviando datos al backend:', payload)
-  
-  // 1. Convertimos a minúsculas
-  let correoIngresado = credenciales.value.correo.toLowerCase()
-  
-  // 2. ELIMINAMOS ACENTOS (médico -> medico)
-  correoIngresado = correoIngresado.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  
-  // 3. OBTENEMOS EL ROL DEL LOCALSTORAGE SI EXISTE
-  const rolRegistrado = localStorage.getItem('usuarioRol')
-  
-  // 4. CONTROL DE FLUJO FLEXIBLE Y SEGURO
-  const esMedico = rolRegistrado === 'medico' || correoIngresado.includes('medico')
-
-  if (esMedico) {
-    console.log('Acceso Médico detectado. Forzando entorno de doctor...')
-    
-    localStorage.setItem('usuarioRol', 'medico')
-    
-    const nombreActual = localStorage.getItem('usuarioNombre')
-    if (!nombreActual || nombreActual === 'Medico' || nombreActual === 'M') {
-      localStorage.setItem('usuarioNombre', 'Carlos') 
+ 
+const iniciarSesion = async () => {
+  if (!formularioValido.value || cargando.value) return
+ 
+  cargando.value = true
+  errorMsg.value = ''
+ 
+  try {
+    const res = await fetch('http://localhost:8000/api/v1/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: credenciales.value.correo,
+        password: credenciales.value.password
+      })
+    })
+ 
+    const data = await res.json()
+ 
+    if (!res.ok) {
+      // El backend devuelve { message: 'Credenciales incorrectas' } con 401
+      errorMsg.value = data.message || 'Error al iniciar sesión. Intenta de nuevo.'
+      return
     }
-    localStorage.setItem('usuarioCorreo', credenciales.value.correo)
-    
-    // REDIRECCIÓN CORRECTA Y EXCLUSIVA DEL MÉDICO
-    router.push('/medico/inicio')
-  } else {
-    console.log('Acceso Paciente detectado. Configurando entorno de paciente...')
-    
-    localStorage.setItem('usuarioRol', 'paciente')
-    
-    const correoRegistrado = localStorage.getItem('usuarioCorreo')
-    
-    if (!correoRegistrado || correoRegistrado.toLowerCase() !== correoIngresado) {
-      const parteCorreo = credenciales.value.correo.split('@')[0]
-      const nombreLimpio = parteCorreo.replace('.', ' ')
-      const nombreSimulado = nombreLimpio.charAt(0).toUpperCase() + nombreLimpio.slice(1)
-
-      localStorage.setItem('usuarioNombre', nombreSimulado)
-      localStorage.setItem('usuarioApePat', '')
-      localStorage.setItem('usuarioApeMat', '')
-      localStorage.setItem('usuarioCorreo', credenciales.value.correo) 
-      localStorage.setItem('usuarioTelefono', '+52 55 1234 5678')
-      localStorage.setItem('usuarioNss', '12345678901')
-      localStorage.setItem('usuarioSexo', 'Masculino')
-      localStorage.setItem('usuarioFechaNac', '1998-05-20')
-      localStorage.setItem('usuarioPeso', '70')
-      localStorage.setItem('usuarioEstatura', '1.70')
+ 
+    // ── Guardar token y datos del usuario ──
+    localStorage.setItem('token', data.token)
+    localStorage.setItem('usuarioNombre', data.user.name ?? '')
+    localStorage.setItem('usuarioCorreo', data.user.email ?? '')
+    localStorage.setItem('usuarioRol', data.user.rol ?? 'paciente')
+ 
+    // ── Redirigir según el rol devuelto por el backend ──
+    if (data.user.rol === 'medico') {
+      router.push('/medico/inicio')
+    } else {
+      router.push('/dashboard')
     }
-    
-    // REDIRECCIÓN AL DASHBOARD DEL PACIENTE
-    router.push('/dashboard')
+ 
+  } catch (err) {
+    // Error de red (el backend no está corriendo, CORS, etc.)
+    errorMsg.value = 'No se pudo conectar al servidor. Verifica que el backend esté activo.'
+  } finally {
+    cargando.value = false
   }
 }
 </script>
-
+ 
 <style scoped>
 .container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #ffffff; padding: 1.5rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 .form-wrapper { width: 100%; max-width: 360px; background: white; padding: 1rem; }
@@ -147,6 +134,7 @@ const iniciarSesion = () => {
 h1 { color: #0d8a72; font-size: 1.7rem; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
 .title { color: #1e293b; font-size: 1.5rem; font-weight: 700; margin: 0 0 0.4rem 0; text-align: center; }
 .subtitle { color: #64748b; font-size: 0.95rem; margin-bottom: 2.5rem; text-align: center; }
+.error-banner { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.9rem; margin-bottom: 1.2rem; text-align: center; }
 .form-group { display: flex; flex-direction: column; margin-bottom: 1.2rem; }
 .form-group label { font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 0.5rem; text-align: left; }
 input { width: 100%; padding: 0.85rem 1rem; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.95rem; background-color: #fff; color: #1e293b; box-sizing: border-box; transition: border-color 0.2s; }
@@ -159,9 +147,8 @@ input:focus { border-color: #0d8a72; outline: none; }
 .forgot-password { font-size: 0.8rem; color: #3b82f6; text-decoration: none; font-weight: 500; }
 .forgot-password:hover { text-decoration: underline; }
 button { width: 100%; padding: 0.9rem; background-color: #0d8a72; color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; margin-bottom: 2rem; }
-button:hover { background-color: #0a6c59; }
-.btn-deshabilitado { background-color: #cbd5e1; cursor: not-allowed; }
-.btn-deshabilitado:hover { background-color: #cbd5e1; }
+button:hover:not(:disabled) { background-color: #0a6c59; }
+.btn-deshabilitado { background-color: #cbd5e1 !important; cursor: not-allowed; }
 .register-redirect { text-align: center; font-size: 0.9rem; color: #64748b; }
 .register-redirect a { color: #3b82f6; text-decoration: none; font-weight: 600; }
 .register-redirect a:hover { text-decoration: underline; }

@@ -1,76 +1,147 @@
+
 <script setup>
-import { ref } from 'vue'
-
+import { ref, onMounted } from 'vue'
+ 
+const BASE_URL = 'http://localhost:8000/api/v1'
+ 
 const citas = ref([])
+const cargandoCitas = ref(false)
+const errorCarga = ref('')
+ 
 const mostrarModal = ref(false)
-
-const nuevoDoctor = ref('')
+const guardando = ref(false)
+ 
+const nuevoMedicoId = ref('')
 const nuevaEspecialidad = ref('Consulta General')
 const nuevaFecha = ref('')
 const nuevaHora = ref('')
-
-const abrirFormulario = () => {
-  mostrarModal.value = true
+const medicos = ref([])  // lista de médicos del backend
+ 
+// ─── Helpers ───────────────────────────────────────────────
+const getToken = () => localStorage.getItem('token')
+ 
+const headers = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${getToken()}`
+})
+ 
+// ─── Cargar citas desde el backend ─────────────────────────
+const cargarCitas = async () => {
+  cargandoCitas.value = true
+  errorCarga.value = ''
+  try {
+    const res = await fetch(`${BASE_URL}/citas`, { headers: headers() })
+    if (!res.ok) throw new Error('Error al cargar citas')
+    const data = await res.json()
+    // La API puede devolver {data: [...]} o directamente el array
+    citas.value = Array.isArray(data) ? data : (data.data ?? [])
+  } catch (err) {
+    errorCarga.value = 'No se pudieron cargar las citas. Verifica tu conexión.'
+  } finally {
+    cargandoCitas.value = false
+  }
 }
-
+ 
+// ─── Cargar médicos para el select del modal ───────────────
+const cargarMedicos = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/medicos`, { headers: headers() })
+    if (!res.ok) return
+    const data = await res.json()
+    medicos.value = Array.isArray(data) ? data : (data.data ?? [])
+  } catch { /* silencioso */ }
+}
+ 
+onMounted(() => {
+  cargarCitas()
+  cargarMedicos()
+})
+ 
+// ─── Modal ─────────────────────────────────────────────────
+const abrirFormulario = () => { mostrarModal.value = true }
+ 
 const cerrarFormulario = () => {
   mostrarModal.value = false
-  nuevoDoctor.value = ''
+  nuevoMedicoId.value = ''
   nuevaEspecialidad.value = 'Consulta General'
   nuevaFecha.value = ''
   nuevaHora.value = ''
 }
-
-const guardarCita = () => {
-  if (!nuevoDoctor.value || !nuevaFecha.value || !nuevaHora.value) {
+ 
+// ─── Crear cita en el backend ──────────────────────────────
+const guardarCita = async () => {
+  if (!nuevoMedicoId.value || !nuevaFecha.value || !nuevaHora.value) {
     alert('Por favor, llena todos los campos.')
     return
   }
-
-  let fechaFormateada = nuevaFecha.value
+ 
+  guardando.value = true
   try {
-    const partes = nuevaFecha.value.split('-')
-    if (partes.length === 3) {
-      const fechaObjeto = new Date(partes[0], partes[1] - 1, partes[2])
-      fechaFormateada = fechaObjeto.toLocaleDateString('es-ES', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
+    const res = await fetch(`${BASE_URL}/citas`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({
+        medico_id: nuevoMedicoId.value,
+        especialidad: nuevaEspecialidad.value,
+        fecha: nuevaFecha.value,
+        hora: nuevaHora.value
       })
+    })
+ 
+    if (!res.ok) {
+      const err = await res.json()
+      alert(err.message ?? 'Error al crear la cita.')
+      return
     }
-  } catch (e) {
-    fechaFormateada = nuevaFecha.value
+ 
+    // Recargar la lista desde el backend para tener datos actualizados
+    await cargarCitas()
+    cerrarFormulario()
+ 
+  } catch {
+    alert('No se pudo conectar al servidor.')
+  } finally {
+    guardando.value = false
   }
-
-  let horaFormateada = nuevaHora.value
-  try {
-    const [horas, minutos] = nuevaHora.value.split(':')
-    const sufijo = horas >= 12 ? 'PM' : 'AM'
-    const horas12 = horas % 12 || 12
-    horaFormateada = `${horas12}:${minutos} ${sufijo}`
-  } catch (e) {
-    horaFormateada = nuevaHora.value
-  }
-
-  citas.value.unshift({
-    id: Date.now(),
-    doctor: nuevoDoctor.value,
-    especialidad: nuevaEspecialidad.value,
-    fecha: fechaFormateada,
-    hora: horaFormateada,
-    estado: 'Confirmada'
-  })
-
-  cerrarFormulario()
 }
-
-const eliminarCita = (id) => {
-  if (confirm('¿Estás seguro de que deseas cancelar esta cita?')) {
-    citas.value = citas.value.filter(cita => cita.id !== id)
+ 
+// ─── Cancelar/eliminar cita ────────────────────────────────
+const eliminarCita = async (id) => {
+  if (!confirm('¿Estás seguro de que deseas cancelar esta cita?')) return
+  try {
+    const res = await fetch(`${BASE_URL}/citas/${id}`, {
+      method: 'DELETE',
+      headers: headers()
+    })
+    if (res.ok) {
+      citas.value = citas.value.filter(c => c.id !== id)
+    } else {
+      alert('No se pudo cancelar la cita.')
+    }
+  } catch {
+    alert('Error de conexión.')
   }
+}
+ 
+// ─── Helpers de formato para mostrar en la UI ──────────────
+const formatearFecha = (fechaStr) => {
+  if (!fechaStr) return ''
+  try {
+    const [y, m, d] = fechaStr.split('-')
+    return new Date(y, m - 1, d).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch { return fechaStr }
+}
+ 
+const formatearHora = (horaStr) => {
+  if (!horaStr) return ''
+  try {
+    const [h, min] = horaStr.split(':')
+    const sufijo = h >= 12 ? 'PM' : 'AM'
+    return `${h % 12 || 12}:${min} ${sufijo}`
+  } catch { return horaStr }
 }
 </script>
-
+ 
 <template>
   <div class="contenedor-citas">
     
@@ -80,12 +151,25 @@ const eliminarCita = (id) => {
         + Agendar Nueva Cita
       </button>
     </div>
-
-    <div v-if="citas.length === 0" class="tarjeta-vacia">
+ 
+    <!-- Estado de carga -->
+    <div v-if="cargandoCitas" class="tarjeta-vacia">
+      <p class="texto-vacio-principal">Cargando citas...</p>
+    </div>
+ 
+    <!-- Error de carga -->
+    <div v-else-if="errorCarga" class="tarjeta-vacia error">
+      <p class="texto-vacio-principal">⚠️ {{ errorCarga }}</p>
+      <button @click="cargarCitas" class="btn-agendar" style="margin-top:12px">Reintentar</button>
+    </div>
+ 
+    <!-- Sin citas -->
+    <div v-else-if="citas.length === 0" class="tarjeta-vacia">
       <p class="texto-vacio-principal">Aún no tienes citas agendadas.</p>
       <p class="texto-vacio-secundario">Usa el botón superior para agendar una nueva consulta médica.</p>
     </div>
-
+ 
+    <!-- Lista de citas -->
     <div v-else class="lista-tarjetas">
       <div v-for="cita in citas" :key="cita.id" class="tarjeta-cita">
         
@@ -98,38 +182,46 @@ const eliminarCita = (id) => {
           
           <div class="textos-cita">
             <div class="linea-doctor">
-              <h3 class="nombre-doctor">{{ cita.doctor }}</h3>
+              <h3 class="nombre-doctor">{{ cita.medico?.nombre ?? cita.doctor ?? 'Médico' }}</h3>
               <span class="separador-especialidad">— {{ cita.especialidad }}</span>
             </div>
             <p class="fecha-cita">
-              <span class="emoji-calendario">📅</span> {{ cita.fecha }} a las {{ cita.hora }}
+              <span class="emoji-calendario">📅</span>
+              {{ formatearFecha(cita.fecha) }} a las {{ formatearHora(cita.hora) }}
             </p>
           </div>
         </div>
-
+ 
         <div class="bloque-derecha">
           <span class="etiqueta-estado">
             <span class="punto-verde"></span>
-            {{ cita.estado }}
+            {{ cita.estado ?? 'Confirmada' }}
           </span>
           <button @click="eliminarCita(cita.id)" class="btn-cancelar">
             Cancelar
           </button>
         </div>
-
+ 
       </div>
     </div>
-
+ 
+    <!-- Modal para agendar -->
     <div v-if="mostrarModal" class="capa-modal">
       <div class="ventana-modal">
         <h3 class="modal-titulo">Agendar Nueva Cita</h3>
         
         <div class="formulario-cuerpo">
+ 
           <div class="campo-grupo">
-            <label class="campo-etiqueta">Médico / Especialista</label>
-            <input v-model="nuevoDoctor" type="text" placeholder="Ej. Dr. Alejandro Armas" class="campo-input" />
+            <label class="campo-etiqueta">Médico</label>
+            <select v-model="nuevoMedicoId" class="campo-select">
+              <option value="" disabled>Selecciona un médico</option>
+              <option v-for="med in medicos" :key="med.id" :value="med.id">
+                {{ med.nombre ?? med.name }}
+              </option>
+            </select>
           </div>
-
+ 
           <div class="campo-grupo">
             <label class="campo-etiqueta">Especialidad</label>
             <select v-model="nuevaEspecialidad" class="campo-select">
@@ -139,7 +231,7 @@ const eliminarCita = (id) => {
               <option value="Pediatría">Pediatría</option>
             </select>
           </div>
-
+ 
           <div class="campo-fila-doble">
             <div class="campo-grupo">
               <label class="campo-etiqueta">Fecha</label>
@@ -151,300 +243,58 @@ const eliminarCita = (id) => {
             </div>
           </div>
         </div>
-
+ 
         <div class="modal-botones">
           <button @click="cerrarFormulario" class="btn-modal-cerrar">Cerrar</button>
-          <button @click="guardarCita" class="btn-modal-confirmar">Confirmar Cita</button>
+          <button @click="guardarCita" :disabled="guardando" class="btn-modal-confirmar">
+            {{ guardando ? 'Guardando...' : 'Confirmar Cita' }}
+          </button>
         </div>
       </div>
     </div>
-
+ 
   </div>
 </template>
-
+ 
 <style scoped>
-/* ESTILOS NATIVOS INDEPENDIENTES DE TAILWIND */
-.contenedor-citas {
-  padding: 24px;
-  max-width: 850px;
-  margin: 0 auto;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-.encabezado-seccion {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.titulo-principal {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0;
-}
-
-.btn-agendar {
-  background-color: #115e59;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 10px 18px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-agendar:hover {
-  background-color: #0f524d;
-}
-
-/* Tarjeta Vacía */
-.tarjeta-vacia {
-  background-color: #ffffff;
-  border: 1px dashed #cbd5e1;
-  border-radius: 16px;
-  padding: 48px;
-  text-align: center;
-}
-.texto-vacio-principal {
-  color: #64748b;
-  font-weight: 500;
-  font-size: 15px;
-  margin: 0 0 6px 0;
-}
-.texto-vacio-secundario {
-  color: #94a3b8;
-  font-size: 13px;
-  margin: 0;
-}
-
-/* Tarjetas Estilo Historial */
-.lista-tarjetas {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.tarjeta-cita {
-  background-color: #ffffff;
-  padding: 20px;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-  transition: all 0.2s ease;
-}
-.tarjeta-cita:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  border-color: #cbd5e1;
-}
-
-.bloque-izquierda {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.contenedor-icono-azul {
-  width: 42px;
-  height: 42px;
-  background-color: #ecfeff;
-  color: #0891b2;
-  border: 1px solid #cffafe;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.icono-svg {
-  width: 20px;
-  height: 20px;
-}
-
-.textos-cita {
-  display: flex;
-  flex-direction: column;
-}
-
-.linea-doctor {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.nombre-doctor {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-}
-
-.separador-especialidad {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.fecha-cita {
-  font-size: 13px;
-  color: #64748b;
-  margin: 6px 0 0 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.emoji-calendario {
-  opacity: 0.8;
-}
-
-.bloque-derecha {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.etiqueta-estado {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #115e59;
-  background-color: #f0fdfa;
-  padding: 6px 12px;
-  border-radius: 9999px;
-  border: 1px solid #ccfbf1;
-}
-
-.punto-verde {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #14b8a6;
-}
-
-.btn-cancelar {
-  background: none;
-  border: none;
-  color: #ef4444;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 4px 8px;
-}
-.btn-cancelar:hover {
-  text-decoration: underline;
-  color: #dc2626;
-}
-
-/* Estilos de la Ventana Modal */
-.capa-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.ventana-modal {
-  background-color: #ffffff;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 400px;
-  padding: 24px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  border: 1px solid #f1f5f9;
-}
-
-.modal-titulo {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 16px 0;
-}
-
-.formulario-cuerpo {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.campo-grupo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.campo-etiqueta {
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.campo-input, .campo-select {
-  padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 14px;
-  color: #334155;
-  background-color: #f8fafc;
-  outline: none;
-}
-.campo-input:focus, .campo-select:focus {
-  border-color: #115e59;
-  background-color: #ffffff;
-}
-
-.campo-fila-doble {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.modal-botones {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 24px;
-}
-
-.btn-modal-cerrar {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 8px 16px;
-  cursor: pointer;
-  border-radius: 8px;
-}
-.btn-modal-cerrar:hover {
-  background-color: #f1f5f9;
-}
-
-.btn-modal-confirmar {
-  background-color: #115e59;
-  color: white;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.btn-modal-confirmar:hover {
-  background-color: #0f524d;
-}
+.contenedor-citas { padding: 24px; max-width: 850px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.encabezado-seccion { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.titulo-principal { font-size: 24px; font-weight: 600; color: #1e293b; margin: 0; }
+.btn-agendar { background-color: #115e59; color: #ffffff; font-size: 14px; font-weight: 500; padding: 10px 18px; border: none; border-radius: 12px; cursor: pointer; transition: background-color 0.2s; }
+.btn-agendar:hover { background-color: #0f524d; }
+.tarjeta-vacia { background-color: #ffffff; border: 1px dashed #cbd5e1; border-radius: 16px; padding: 48px; text-align: center; }
+.tarjeta-vacia.error { border-color: #fca5a5; background-color: #fef2f2; }
+.texto-vacio-principal { color: #64748b; font-weight: 500; font-size: 15px; margin: 0 0 6px 0; }
+.texto-vacio-secundario { color: #94a3b8; font-size: 13px; margin: 0; }
+.lista-tarjetas { display: flex; flex-direction: column; gap: 16px; }
+.tarjeta-cita { background-color: #ffffff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); transition: all 0.2s ease; }
+.tarjeta-cita:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.bloque-izquierda { display: flex; align-items: center; gap: 16px; }
+.contenedor-icono-azul { width: 42px; height: 42px; background-color: #ecfeff; color: #0891b2; border: 1px solid #cffafe; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.icono-svg { width: 20px; height: 20px; }
+.textos-cita { display: flex; flex-direction: column; }
+.linea-doctor { display: flex; align-items: baseline; gap: 8px; }
+.nombre-doctor { font-size: 16px; font-weight: 700; color: #1e293b; margin: 0; }
+.separador-especialidad { font-size: 13px; color: #64748b; }
+.fecha-cita { font-size: 13px; color: #64748b; margin: 6px 0 0 0; display: flex; align-items: center; gap: 6px; }
+.bloque-derecha { display: flex; align-items: center; gap: 16px; }
+.etiqueta-estado { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #115e59; background-color: #f0fdfa; padding: 6px 12px; border-radius: 9999px; border: 1px solid #ccfbf1; }
+.punto-verde { width: 6px; height: 6px; border-radius: 50%; background-color: #14b8a6; }
+.btn-cancelar { background: none; border: none; color: #ef4444; font-size: 13px; font-weight: 500; cursor: pointer; padding: 4px 8px; }
+.btn-cancelar:hover { text-decoration: underline; color: #dc2626; }
+.capa-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+.ventana-modal { background-color: #ffffff; border-radius: 16px; width: 100%; max-width: 400px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+.modal-titulo { font-size: 18px; font-weight: 700; color: #1e293b; margin: 0 0 16px 0; }
+.formulario-cuerpo { display: flex; flex-direction: column; gap: 14px; }
+.campo-grupo { display: flex; flex-direction: column; gap: 4px; }
+.campo-etiqueta { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+.campo-input, .campo-select { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; color: #334155; background-color: #f8fafc; outline: none; }
+.campo-input:focus, .campo-select:focus { border-color: #115e59; background-color: #ffffff; }
+.campo-fila-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-botones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.btn-modal-cerrar { background: none; border: none; color: #64748b; font-size: 13px; font-weight: 500; padding: 8px 16px; cursor: pointer; border-radius: 8px; }
+.btn-modal-cerrar:hover { background-color: #f1f5f9; }
+.btn-modal-confirmar { background-color: #115e59; color: white; border: none; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+.btn-modal-confirmar:hover:not(:disabled) { background-color: #0f524d; }
+.btn-modal-confirmar:disabled { background-color: #94a3b8; cursor: not-allowed; }
 </style>
