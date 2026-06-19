@@ -1,31 +1,29 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
- 
+
 const BASE_URL = 'http://localhost:8000/api/v1'
- 
+
 const citas = ref([])
 const cargandoCitas = ref(false)
 const errorCarga = ref('')
- 
+
 const mostrarModal = ref(false)
 const guardando = ref(false)
- 
+
 const nuevoMedicoId = ref('')
 const nuevaEspecialidad = ref('Consulta General')
 const nuevaFecha = ref('')
 const nuevaHora = ref('')
-const medicos = ref([])  // lista de médicos del backend
- 
-// ─── Helpers ───────────────────────────────────────────────
+const medicos = ref([])
+
 const getToken = () => localStorage.getItem('token')
- 
+
 const headers = () => ({
   'Content-Type': 'application/json',
   'Authorization': `Bearer ${getToken()}`
 })
- 
-// ─── Cargar citas desde el backend ─────────────────────────
+
 const cargarCitas = async () => {
   cargandoCitas.value = true
   errorCarga.value = ''
@@ -33,7 +31,6 @@ const cargarCitas = async () => {
     const res = await fetch(`${BASE_URL}/citas`, { headers: headers() })
     if (!res.ok) throw new Error('Error al cargar citas')
     const data = await res.json()
-    // La API puede devolver {data: [...]} o directamente el array
     citas.value = Array.isArray(data) ? data : (data.data ?? [])
   } catch (err) {
     errorCarga.value = 'No se pudieron cargar las citas. Verifica tu conexión.'
@@ -41,8 +38,7 @@ const cargarCitas = async () => {
     cargandoCitas.value = false
   }
 }
- 
-// ─── Cargar médicos para el select del modal ───────────────
+
 const cargarMedicos = async () => {
   try {
     const res = await fetch(`${BASE_URL}/medicos`, { headers: headers() })
@@ -51,15 +47,14 @@ const cargarMedicos = async () => {
     medicos.value = Array.isArray(data) ? data : (data.data ?? [])
   } catch { /* silencioso */ }
 }
- 
+
 onMounted(() => {
   cargarCitas()
   cargarMedicos()
 })
- 
-// ─── Modal ─────────────────────────────────────────────────
+
 const abrirFormulario = () => { mostrarModal.value = true }
- 
+
 const cerrarFormulario = () => {
   mostrarModal.value = false
   nuevoMedicoId.value = ''
@@ -67,45 +62,44 @@ const cerrarFormulario = () => {
   nuevaFecha.value = ''
   nuevaHora.value = ''
 }
- 
-// ─── Crear cita en el backend ──────────────────────────────
+
 const guardarCita = async () => {
   if (!nuevoMedicoId.value || !nuevaFecha.value || !nuevaHora.value) {
     alert('Por favor, llena todos los campos.')
     return
   }
- 
+
   guardando.value = true
   try {
+    const pacId = parseInt(localStorage.getItem('pacId') ?? '1')
     const res = await fetch(`${BASE_URL}/citas`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify({
-        medico_id: nuevoMedicoId.value,
-        especialidad: nuevaEspecialidad.value,
-        fecha: nuevaFecha.value,
-        hora: nuevaHora.value
+        medId: parseInt(nuevoMedicoId.value),
+        pacId: pacId,
+        citFecha: nuevaFecha.value,
+        citHora: nuevaHora.value + ':00',
+        citMotivo: nuevaEspecialidad.value
       })
     })
- 
+
     if (!res.ok) {
       const err = await res.json()
       alert(err.message ?? 'Error al crear la cita.')
       return
     }
- 
-    // Recargar la lista desde el backend para tener datos actualizados
+
     await cargarCitas()
     cerrarFormulario()
- 
+
   } catch {
     alert('No se pudo conectar al servidor.')
   } finally {
     guardando.value = false
   }
 }
- 
-// ─── Cancelar/eliminar cita ────────────────────────────────
+
 const eliminarCita = async (id) => {
   if (!confirm('¿Estás seguro de que deseas cancelar esta cita?')) return
   try {
@@ -114,7 +108,7 @@ const eliminarCita = async (id) => {
       headers: headers()
     })
     if (res.ok) {
-      citas.value = citas.value.filter(c => c.id !== id)
+      citas.value = citas.value.filter(c => c.citId !== id)
     } else {
       alert('No se pudo cancelar la cita.')
     }
@@ -122,16 +116,14 @@ const eliminarCita = async (id) => {
     alert('Error de conexión.')
   }
 }
- 
-// ─── Helpers de formato para mostrar en la UI ──────────────
+
 const formatearFecha = (fechaStr) => {
   if (!fechaStr) return ''
   try {
-    const [y, m, d] = fechaStr.split('-')
-    return new Date(y, m - 1, d).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    return new Date(fechaStr).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
   } catch { return fechaStr }
 }
- 
+
 const formatearHora = (horaStr) => {
   if (!horaStr) return ''
   try {
@@ -151,27 +143,23 @@ const formatearHora = (horaStr) => {
         + Agendar Nueva Cita
       </button>
     </div>
- 
-    <!-- Estado de carga -->
+
     <div v-if="cargandoCitas" class="tarjeta-vacia">
       <p class="texto-vacio-principal">Cargando citas...</p>
     </div>
- 
-    <!-- Error de carga -->
+
     <div v-else-if="errorCarga" class="tarjeta-vacia error">
       <p class="texto-vacio-principal">⚠️ {{ errorCarga }}</p>
       <button @click="cargarCitas" class="btn-agendar" style="margin-top:12px">Reintentar</button>
     </div>
- 
-    <!-- Sin citas -->
+
     <div v-else-if="citas.length === 0" class="tarjeta-vacia">
       <p class="texto-vacio-principal">Aún no tienes citas agendadas.</p>
       <p class="texto-vacio-secundario">Usa el botón superior para agendar una nueva consulta médica.</p>
     </div>
- 
-    <!-- Lista de citas -->
+
     <div v-else class="lista-tarjetas">
-      <div v-for="cita in citas" :key="cita.id" class="tarjeta-cita">
+      <div v-for="cita in citas" :key="cita.citId" class="tarjeta-cita">
         
         <div class="bloque-izquierda">
           <div class="contenedor-icono-azul">
@@ -182,48 +170,47 @@ const formatearHora = (horaStr) => {
           
           <div class="textos-cita">
             <div class="linea-doctor">
-              <h3 class="nombre-doctor">{{ cita.medico?.nombre ?? cita.doctor ?? 'Médico' }}</h3>
-              <span class="separador-especialidad">— {{ cita.especialidad }}</span>
+              <h3 class="nombre-doctor">{{ cita.medico?.medNombre ?? 'Médico' }}</h3>
+              <span class="separador-especialidad">— {{ cita.citMotivo }}</span>
             </div>
             <p class="fecha-cita">
               <span class="emoji-calendario">📅</span>
-              {{ formatearFecha(cita.fecha) }} a las {{ formatearHora(cita.hora) }}
+              {{ formatearFecha(cita.citFecha) }} a las {{ formatearHora(cita.citHora) }}
             </p>
           </div>
         </div>
- 
+
         <div class="bloque-derecha">
           <span class="etiqueta-estado">
             <span class="punto-verde"></span>
-            {{ cita.estado ?? 'Confirmada' }}
+            {{ cita.citEstatus ?? 'agendada' }}
           </span>
-          <button @click="eliminarCita(cita.id)" class="btn-cancelar">
+          <button @click="eliminarCita(cita.citId)" class="btn-cancelar">
             Cancelar
           </button>
         </div>
- 
+
       </div>
     </div>
- 
-    <!-- Modal para agendar -->
+
     <div v-if="mostrarModal" class="capa-modal">
       <div class="ventana-modal">
         <h3 class="modal-titulo">Agendar Nueva Cita</h3>
         
         <div class="formulario-cuerpo">
- 
+
           <div class="campo-grupo">
             <label class="campo-etiqueta">Médico</label>
             <select v-model="nuevoMedicoId" class="campo-select">
               <option value="" disabled>Selecciona un médico</option>
-              <option v-for="med in medicos" :key="med.id" :value="med.id">
-                {{ med.nombre ?? med.name }}
+              <option v-for="med in medicos" :key="med.medId" :value="med.medId">
+                {{ med.medNombre }} {{ med.medApePat }}
               </option>
             </select>
           </div>
- 
+
           <div class="campo-grupo">
-            <label class="campo-etiqueta">Especialidad</label>
+            <label class="campo-etiqueta">Motivo</label>
             <select v-model="nuevaEspecialidad" class="campo-select">
               <option value="Consulta General">Consulta General</option>
               <option value="Cardiología">Cardiología</option>
@@ -231,7 +218,7 @@ const formatearHora = (horaStr) => {
               <option value="Pediatría">Pediatría</option>
             </select>
           </div>
- 
+
           <div class="campo-fila-doble">
             <div class="campo-grupo">
               <label class="campo-etiqueta">Fecha</label>
@@ -243,7 +230,7 @@ const formatearHora = (horaStr) => {
             </div>
           </div>
         </div>
- 
+
         <div class="modal-botones">
           <button @click="cerrarFormulario" class="btn-modal-cerrar">Cerrar</button>
           <button @click="guardarCita" :disabled="guardando" class="btn-modal-confirmar">
@@ -252,7 +239,7 @@ const formatearHora = (horaStr) => {
         </div>
       </div>
     </div>
- 
+
   </div>
 </template>
  
