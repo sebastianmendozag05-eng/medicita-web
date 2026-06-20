@@ -1,4 +1,3 @@
-
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -11,8 +10,11 @@ import CitasView from '../views/paciente/CitasView.vue'
 import HistorialView from '../views/paciente/HistorialView.vue'
 import NotificacionesView from '../views/paciente/NotificacionesView.vue'
  
-// Vista del médico
+// Vistas del médico
 import InicioMedicoView from '../views/Medico/InicioMedicoView.vue'
+import PerfilMedicoView from '../views/Medico/PerfilMedicoView.vue'
+import AgendaMedicoView from '../views/Medico/AgendaMedicoView.vue'
+import HistorialMedicoView from '../views/Medico/HistorialMedicoView.vue'
  
 // Rutas públicas (no necesitan token)
 const rutasPublicas = ['login', 'registro', 'recuperar']
@@ -42,10 +44,10 @@ const router = createRouter({
       meta: { requiereAuth: true, rol: 'paciente' },
       component: DashboardPacienteView,
       children: [
-        { path: 'perfil',          name: 'dashboard-perfil',          component: PerfilView },
-        { path: 'citas',           name: 'dashboard-citas',           component: CitasView },
-        { path: 'historial',       name: 'dashboard-historial',       component: HistorialView },
-        { path: 'notificaciones',  name: 'dashboard-notificaciones',  component: NotificacionesView }
+        { path: 'perfil',         name: 'dashboard-perfil',         component: PerfilView },
+        { path: 'citas',          name: 'dashboard-citas',          component: CitasView },
+        { path: 'historial',      name: 'dashboard-historial',      component: HistorialView },
+        { path: 'notificaciones', name: 'dashboard-notificaciones', component: NotificacionesView }
       ]
     },
  
@@ -55,6 +57,24 @@ const router = createRouter({
       name: 'medico-inicio',
       meta: { requiereAuth: true, rol: 'medico' },
       component: InicioMedicoView
+    },
+    {
+      path: '/medico/perfil',
+      name: 'medico-perfil',
+      meta: { requiereAuth: true, rol: 'medico' },
+      component: PerfilMedicoView
+    },
+    {
+      path: '/medico/agenda',
+      name: 'medico-agenda',
+      meta: { requiereAuth: true, rol: 'medico' },
+      component: AgendaMedicoView
+    },
+    {
+      path: '/medico/historiales',
+      name: 'medico-historiales',
+      meta: { requiereAuth: true, rol: 'medico' },
+      component: HistorialMedicoView
     }
   ]
 })
