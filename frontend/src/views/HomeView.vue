@@ -17,8 +17,13 @@
           <input type="radio" value="medico" v-model="tipoUsuario" />
           <span>Médico</span>
         </label>
+        <!-- NUEVO: opción recepcionista -->
+        <label>
+          <input type="radio" value="recepcionista" v-model="tipoUsuario" />
+          <span>Recepcionista</span>
+        </label>
       </div>
-
+ 
       <form @submit.prevent="registrarUsuario">
         
         <div class="form-group-row">
@@ -29,15 +34,15 @@
             <input type="text" v-model="formulario.apePat" required placeholder="Apellido Paterno" />
           </div>
         </div>
-
+ 
         <div class="form-group">
           <input type="text" v-model="formulario.apeMat" placeholder="Apellido Materno (Opcional)" />
         </div>
-
+ 
         <div class="form-group">
           <input type="email" v-model="formulario.correo" required placeholder="Correo electrónico" />
         </div>
-
+ 
         <div class="form-group">
           <select v-model="formulario.sexo" required>
             <option value="" disabled selected>Selecciona tu Sexo</option>
@@ -46,7 +51,8 @@
             <option value="Otro">Otro</option>
           </select>
         </div>
-
+ 
+        <!-- Campos dinámicos: Paciente -->
         <div v-if="tipoUsuario === 'paciente'" class="dynamic-fields">
           <div class="form-group">
             <label class="input-label">Fecha de Nacimiento</label>
@@ -67,7 +73,8 @@
             </div>
           </div>
         </div>
-
+ 
+        <!-- Campos dinámicos: Médico -->
         <div v-if="tipoUsuario === 'medico'" class="dynamic-fields">
           <div class="form-group">
             <input type="number" v-model="formulario.edad" required placeholder="Edad" min="18" />
@@ -87,48 +94,66 @@
             <input type="text" v-model="formulario.turnos" placeholder="Turnos (ej: Matutino, Vespertino)" />
           </div>
         </div>
-
+ 
+        <!-- NUEVO: Campos dinámicos: Recepcionista -->
+        <div v-if="tipoUsuario === 'recepcionista'" class="dynamic-fields">
+          <div class="form-group">
+            <input type="number" v-model="formulario.edad" required placeholder="Edad" min="18" />
+          </div>
+          <div class="form-group">
+            <input type="tel" v-model="formulario.telefono" required placeholder="Teléfono" />
+          </div>
+          <div class="form-group">
+            <select v-model="formulario.turno" required>
+              <option value="" disabled selected>Selecciona tu Turno</option>
+              <option value="Matutino">Matutino</option>
+              <option value="Vespertino">Vespertino</option>
+              <option value="Nocturno">Nocturno</option>
+            </select>
+          </div>
+        </div>
+ 
         <div class="form-group password-field">
           <input :type="mostrarPass ? 'text' : 'password'" v-model="formulario.password" required placeholder="Contraseña" />
           <span class="eye-icon" @click="mostrarPass = !mostrarPass">{{ mostrarPass ? '👁️' : '🙈' }}</span>
         </div>
-
+ 
         <div class="form-group password-field">
           <input :type="mostrarPass ? 'text' : 'password'" v-model="formulario.confirmarPassword" required placeholder="Confirmar Contraseña" />
         </div>
-
+ 
         <p v-if="formulario.password && !esPasswordValida" class="invalido">
           ✗ La contraseña debe tener al menos 8 caracteres.
         </p>
         <p v-if="formulario.confirmarPassword && !contraseniasCoinciden" class="invalido">
           ✗ Las contraseñas no coinciden.
         </p>
-
+ 
         <div class="terms">
           <input type="checkbox" id="terms" v-model="formulario.aceptarTerminos" required />
           <label for="terms">Acepto los <a href="#">Términos y Condiciones</a> y la <a href="#">Política de Privacidad</a></label>
         </div>
-
+ 
         <button type="submit" :disabled="!formularioValido" :class="{ 'btn-deshabilitado': !formularioValido }">
           Registrarme
         </button>
       </form>
-
+ 
       <div class="login-redirect">
         ¿Ya tienes cuenta? <router-link to="/login">Inicie sesión</router-link>
       </div>
     </div>
   </main>
 </template>
-
+ 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-
+ 
 const router = useRouter()
 const tipoUsuario = ref('paciente') 
 const mostrarPass = ref(false)
-
+ 
 const BlackboxEspecialidades = [
   { espeId: 1, espeNombre: 'Medicina General' },
   { espeId: 2, espeNombre: 'Pediatría' },
@@ -137,7 +162,7 @@ const BlackboxEspecialidades = [
 ]
 const BlackboxEspecialidadesRef = ref(BlackboxEspecialidades)
 const especialidades = computed(() => BlackboxEspecialidadesRef.value)
-
+ 
 const inicializarFormulario = () => ({
   nombre: '',
   apePat: '',
@@ -147,19 +172,23 @@ const inicializarFormulario = () => ({
   password: '',
   confirmarPassword: '',
   aceptarTerminos: false,
+  // Paciente
   fechaNac: '',
   nss: '',
   telefono: '',
   peso: '',
   estatura: '',
+  // Médico
   edad: '',
   cedula: '',
   especialidadId: '',
-  turnos: ''
+  turnos: '',
+  // NUEVO: Recepcionista
+  turno: ''
 })
-
+ 
 const formulario = ref(inicializarFormulario())
-
+ 
 watch(tipoUsuario, () => {
   const camposLimpios = inicializarFormulario()
   Object.keys(formulario.value).forEach(key => {
@@ -168,10 +197,10 @@ watch(tipoUsuario, () => {
     }
   })
 })
-
+ 
 const esPasswordValida = computed(() => formulario.value.password.length >= 8)
 const contraseniasCoinciden = computed(() => formulario.value.password === formulario.value.confirmarPassword)
-
+ 
 const formularioValido = computed(() => {
   const baseValida = 
     formulario.value.nombre && 
@@ -181,19 +210,22 @@ const formularioValido = computed(() => {
     esPasswordValida.value && 
     contraseniasCoinciden.value && 
     formulario.value.aceptarTerminos
-
+ 
   if (!baseValida) return false
-
+ 
   if (tipoUsuario.value === 'paciente') {
     return formulario.value.fechaNac && formulario.value.nss && formulario.value.telefono && formulario.value.peso && formulario.value.estatura
-  } else {
+  } else if (tipoUsuario.value === 'medico') {
     return formulario.value.edad && formulario.value.cedula && formulario.value.especialidadId
+  } else {
+    // NUEVO: validación recepcionista
+    return formulario.value.edad && formulario.value.telefono && formulario.value.turno
   }
 })
-
+ 
 const registrarUsuario = async () => {
   if (!formularioValido.value) return
-
+ 
   try {
     // 1. Crear usuario en Auth
     const resAuth = await fetch('http://localhost:8000/api/v1/register', {
@@ -207,16 +239,16 @@ const registrarUsuario = async () => {
         rol: tipoUsuario.value
       })
     })
-
+ 
     const dataAuth = await resAuth.json()
     if (!resAuth.ok) {
       alert(dataAuth.message ?? 'Error al registrar usuario.')
       return
     }
-
+ 
     const token = dataAuth.token
     const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
-
+ 
     // 2. Crear perfil según rol
     if (tipoUsuario.value === 'paciente') {
       await fetch('http://localhost:8000/api/v1/pacientes', {
@@ -235,7 +267,7 @@ const registrarUsuario = async () => {
           pacEstatura: parseFloat(formulario.value.estatura)
         })
       })
-    } else {
+    } else if (tipoUsuario.value === 'medico') {
       await fetch('http://localhost:8000/api/v1/medicos', {
         method: 'POST',
         headers,
@@ -249,17 +281,33 @@ const registrarUsuario = async () => {
           medCedula: formulario.value.cedula
         })
       })
+    } else {
+      // NUEVO: registro recepcionista
+      await fetch('http://localhost:8000/api/v1/recepcionistas', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          recNombre:   formulario.value.nombre,
+          recApePat:   formulario.value.apePat,
+          recApeMat:   formulario.value.apeMat,
+          recSexo:     formulario.value.sexo,
+          recEdad:     parseInt(formulario.value.edad),
+          recCorreo:   formulario.value.correo,
+          recTelefono: formulario.value.telefono,
+          recTurno:    formulario.value.turno
+        })
+      })
     }
-
+ 
     alert('¡Registro exitoso! Ahora inicia sesión.')
     router.push('/login')
-
+ 
   } catch (err) {
     alert('No se pudo conectar al servidor.')
   }
 }
 </script>
-
+ 
 <style scoped>
 .container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; padding: 2rem 1rem; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 .form-wrapper { background: white; padding: 2.5rem 2rem; border-radius: 16px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03); width: 100%; max-width: 440px; }
@@ -268,10 +316,10 @@ const registrarUsuario = async () => {
 h1 { color: #0d8a72; font-size: 1.6rem; font-weight: bold; margin: 0; }
 h2 { color: #1e293b; font-size: 1.4rem; margin: 0 0 0.3rem 0; font-weight: 600; text-align: left;}
 .subtitle { color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem; text-align: left; }
-.role-selector { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+.role-selector { display: flex; gap: 0.6rem; margin-bottom: 1.5rem; }
 .role-selector label { flex: 1; cursor: pointer; }
 .role-selector input { display: none; }
-.role-selector span { display: block; text-align: center; padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 8px; color: #64748b; font-weight: 500; transition: all 0.2s; }
+.role-selector span { display: block; text-align: center; padding: 0.6rem 0.3rem; border: 1px solid #e2e8f0; border-radius: 8px; color: #64748b; font-weight: 500; font-size: 0.88rem; transition: all 0.2s; }
 .role-selector input:checked + span { background-color: #e6f4f1; border-color: #0d8a72; color: #0d8a72; }
 .form-group { margin-bottom: 1rem; position: relative; }
 .form-group-row { display: flex; gap: 1rem; }
