@@ -252,3 +252,15 @@ INNER JOIN MEDICO_ESPECIALIDAD me ON m.medId = me.medId
 INNER JOIN ESPECIALIDAD e ON me.espeId = e.espeId
 INNER JOIN TURNO_MEDICO t ON m.medId = t.medId
 WHERE m.medEstatus = 1;
+
+
+
+
+
+
+
+USE medicita;
+SHOW TABLES;
+SELECT * FROM medico;
+SELECT * FROM paciente;
+SELECT * FROM cita;

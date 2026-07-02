@@ -191,64 +191,71 @@ const formularioValido = computed(() => {
   }
 })
 
-const registrarUsuario = () => {
+const registrarUsuario = async () => {
   if (!formularioValido.value) return
 
-  let payload = {}
+  try {
+    // 1. Crear usuario en Auth
+    const resAuth = await fetch('http://localhost:8000/api/v1/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: `${formulario.value.nombre} ${formulario.value.apePat}`,
+        email: formulario.value.correo,
+        password: formulario.value.password,
+        password_confirmation: formulario.value.confirmarPassword,
+        rol: tipoUsuario.value
+      })
+    })
 
-  if (tipoUsuario.value === 'paciente') {
-    payload = {
-      pacNombre: formulario.value.nombre,
-      pacApePat: formulario.value.apePat,
-      pacApeMat: formulario.value.apeMat,
-      pacSexo: formulario.value.sexo,
-      pacFechaNac: formulario.value.fechaNac,
-      pacNSS: formulario.value.nss,
-      pacCorreo: formulario.value.correo,
-      pacTelefono: formulario.value.telefono,
-      pacPeso: parseFloat(formulario.value.peso),
-      pacEstatura: parseFloat(formulario.value.estatura),
-      pacEstatus: 1,
-      password: formulario.value.password
+    const dataAuth = await resAuth.json()
+    if (!resAuth.ok) {
+      alert(dataAuth.message ?? 'Error al registrar usuario.')
+      return
     }
 
-    localStorage.setItem('usuarioNombre', formulario.value.nombre)
-    localStorage.setItem('usuarioRol', 'paciente')
-    localStorage.setItem('usuarioApePat', formulario.value.apePat)
-    localStorage.setItem('usuarioApeMat', formulario.value.apeMat || '')
-    localStorage.setItem('usuarioCorreo', formulario.value.correo)
-    localStorage.setItem('usuarioTelefono', formulario.value.telefono)
-    localStorage.setItem('usuarioNss', formulario.value.nss)
-    localStorage.setItem('usuarioSexo', formulario.value.sexo)
-    localStorage.setItem('usuarioFechaNac', formulario.value.fechaNac)
-    localStorage.setItem('usuarioPeso', formulario.value.peso)
-    localStorage.setItem('usuarioEstatura', formulario.value.estatura)
-    
-    console.log('Paciente registrado y guardado localmente:', payload)
-    alert('¡Registro de PACIENTE exitoso! Ahora inicia sesión.')
-    router.push('/login')
+    const token = dataAuth.token
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
 
-  } else {
-    payload = {
-      medNombre: formulario.value.nombre,
-      medApePat: formulario.value.apePat,
-      medApeMat: formulario.value.apeMat,
-      medSexo: formulario.value.sexo,
-      medEdad: parseInt(formulario.value.edad),
-      medCorreo: formulario.value.correo,
-      medCedula: formulario.value.cedula,
-      medEstatus: 1,
-      medTurnos: formulario.value.turnos,
-      especialidadId: formulario.value.especialidadId
+    // 2. Crear perfil según rol
+    if (tipoUsuario.value === 'paciente') {
+      await fetch('http://localhost:8000/api/v1/pacientes', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          pacNombre: formulario.value.nombre,
+          pacApePat: formulario.value.apePat,
+          pacApeMat: formulario.value.apeMat,
+          pacSexo: formulario.value.sexo,
+          pacFechaNac: formulario.value.fechaNac,
+          pacNSS: formulario.value.nss,
+          pacCorreo: formulario.value.correo,
+          pacTelefono: formulario.value.telefono,
+          pacPeso: parseFloat(formulario.value.peso),
+          pacEstatura: parseFloat(formulario.value.estatura)
+        })
+      })
+    } else {
+      await fetch('http://localhost:8000/api/v1/medicos', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          medNombre: formulario.value.nombre,
+          medApePat: formulario.value.apePat,
+          medApeMat: formulario.value.apeMat,
+          medSexo: formulario.value.sexo,
+          medEdad: parseInt(formulario.value.edad),
+          medCorreo: formulario.value.correo,
+          medCedula: formulario.value.cedula
+        })
+      })
     }
 
-    localStorage.setItem('usuarioNombre', formulario.value.nombre)
-    localStorage.setItem('usuarioRol', 'medico')
-    localStorage.setItem('usuarioCorreo', formulario.value.correo)
-    
-    console.log('Médico registrado:', payload)
-    alert('¡Registro de MÉDICO exitoso! Ahora inicia sesión.')
+    alert('¡Registro exitoso! Ahora inicia sesión.')
     router.push('/login')
+
+  } catch (err) {
+    alert('No se pudo conectar al servidor.')
   }
 }
 </script>
