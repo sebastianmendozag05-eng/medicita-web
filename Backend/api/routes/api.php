@@ -13,6 +13,7 @@ use App\Http\Controllers\TurnoMedicoController;
 use App\Http\Controllers\AusenciaMedicoController;
 use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\RecepcionistaController;
 
 Route::prefix('v1')->group(function () {
     Route::post('/register', [RegisterController::class, 'store']);
@@ -31,6 +32,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('citas', CitaController::class);
         Route::apiResource('medicos', MedicoController::class);
         Route::apiResource('pacientes', PacienteController::class);
+        Route::apiResource('recepcionistas', RecepcionistaController::class);
 
         Route::post('/expediente', [ExpedienteController::class, 'store']);
         Route::get('/expediente/{pacId}', [ExpedienteController::class, 'show']);

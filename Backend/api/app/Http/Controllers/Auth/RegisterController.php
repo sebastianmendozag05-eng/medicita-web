@@ -15,7 +15,7 @@ class RegisterController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users',
             'password' => 'required|min:8|confirmed',
-            'rol'      => 'in:paciente,medico,recepcionista,admin',
+            'rol'      => 'in:paciente,medico,recepcionista,administrador',
         ]);
 
         $user = User::create([
