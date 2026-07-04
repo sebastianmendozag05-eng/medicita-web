@@ -68,30 +68,54 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
 const kpis = ref([
-  { icon: '👥', label: 'Pacientes registrados', value: '248', trend: '12 este mes', trendUp: true,  bg: '#e6f4f1' },
-  { icon: '📅', label: 'Citas hoy',             value: '34',  trend: '5 más que ayer', trendUp: true,  bg: '#eff6ff' },
-  { icon: '🩺', label: 'Médicos activos',        value: '18',  trend: '1 menos',        trendUp: false, bg: '#fef9c3' },
-  { icon: '🔔', label: 'Notificaciones',         value: '3',   trend: 'Sin resolver',   trendUp: false, bg: '#fee2e2' },
+  { icon: '👥', label: 'Pacientes registrados', value: '0', trend: '', trendUp: true, bg: '#e6f4f1' },
+  { icon: '📅', label: 'Citas hoy', value: '0', trend: '', trendUp: true, bg: '#eff6ff' },
+  { icon: '🩺', label: 'Médicos activos', value: '0', trend: '', trendUp: true, bg: '#fef9c3' },
+  { icon: '📋', label: 'Pendientes', value: '0', trend: '', trendUp: false, bg: '#fee2e2' },
 ])
 
-const citasHoy = ref([
-  { id: 1, paciente: 'Ana Martínez',    medico: 'Dr. López',    hora: '09:00', estado: 'confirmada',  estadoLabel: 'Confirmada'  },
-  { id: 2, paciente: 'Luis Hernández',  medico: 'Dra. Ramírez', hora: '10:30', estado: 'pendiente',   estadoLabel: 'Pendiente'   },
-  { id: 3, paciente: 'Sofía Torres',    medico: 'Dr. Gómez',    hora: '11:00', estado: 'confirmada',  estadoLabel: 'Confirmada'  },
-  { id: 4, paciente: 'Carlos Mendoza',  medico: 'Dr. López',    hora: '12:00', estado: 'cancelada',   estadoLabel: 'Cancelada'   },
-  { id: 5, paciente: 'María Sánchez',   medico: 'Dra. Ramírez', hora: '13:30', estado: 'pendiente',   estadoLabel: 'Pendiente'   },
-])
+const citasHoy = ref([])
+const actividad = ref([])
 
-const actividad = ref([
-  { id: 1, mensaje: 'Nuevo paciente registrado: Pedro Ruiz',      tiempo: 'hace 5 min',  color: '#0d8a72' },
-  { id: 2, mensaje: 'Cita cancelada por Dr. Gómez (14:00)',       tiempo: 'hace 18 min', color: '#ef4444' },
-  { id: 3, mensaje: 'Dra. Ramírez actualizó su horario',          tiempo: 'hace 45 min', color: '#f59e0b' },
-  { id: 4, mensaje: 'Reporte mensual generado correctamente',     tiempo: 'hace 1 h',    color: '#3b82f6' },
-  { id: 5, mensaje: 'Nuevo médico añadido: Dr. Vargas',           tiempo: 'hace 3 h',    color: '#0d8a72' },
-])
+onMounted(async () => {
+  const [resCitas, resMedicos, resPacientes, resResumen] = await Promise.all([
+    fetch(`${BASE_URL}/citas`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/medicos`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/pacientes`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/reportes/resumen`, { headers: getHeaders() })
+  ])
+
+  if (resPacientes.ok) {
+    const p = await resPacientes.json()
+    kpis.value[0].value = String(p.length)
+  }
+  if (resMedicos.ok) {
+    const m = await resMedicos.json()
+    kpis.value[2].value = String(m.length)
+  }
+  if (resResumen.ok) {
+    const r = await resResumen.json()
+    kpis.value[1].value = String(r.total_citas)
+    kpis.value[3].value = String(r.pendientes)
+  }
+  if (resCitas.ok) {
+    const citas = await resCitas.json()
+    citasHoy.value = citas.slice(0, 5).map(c => ({
+      id: c.citId,
+      paciente: `${c.paciente?.pacNombre ?? ''} ${c.paciente?.pacApePat ?? ''}`,
+      medico: `Dr. ${c.medico?.medNombre ?? ''}`,
+      hora: c.citHora?.substring(0, 5),
+      estado: c.citEstatus,
+      estadoLabel: c.citEstatus.charAt(0).toUpperCase() + c.citEstatus.slice(1)
+    }))
+  }
+})
 </script>
 
 <style scoped>
