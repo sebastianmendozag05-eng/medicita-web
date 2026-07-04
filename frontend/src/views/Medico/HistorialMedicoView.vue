@@ -3,252 +3,152 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-
-// --- Datos de ejemplo (reemplazar con llamada a tu API) ---
-const pacientes = ref([
-  {
-    id: 1,
-    nombre: 'María González',
-    edad: 34,
-    sexo: 'F',
-    ultimaVisita: '2026-06-20',
-    diagnostico: 'Hipertensión leve',
-    consultas: [
-      { fecha: '2026-06-20', motivo: 'Control mensual', diagnostico: 'Hipertensión leve', receta: 'Losartán 50mg c/24h', notas: 'Presión 130/85. Mejorando.' },
-      { fecha: '2026-05-15', motivo: 'Consulta general', diagnostico: 'Hipertensión inicial', receta: 'Dieta baja en sodio', notas: 'Primera consulta. Referida por urgencias.' },
-    ]
-  },
-  {
-    id: 2,
-    nombre: 'Carlos Ramírez',
-    edad: 52,
-    sexo: 'M',
-    ultimaVisita: '2026-06-20',
-    diagnostico: 'Diabetes tipo 2',
-    consultas: [
-      { fecha: '2026-06-20', motivo: 'Revisión de resultados', diagnostico: 'Diabetes tipo 2 controlada', receta: 'Metformina 850mg c/12h', notas: 'Glucosa 110 mg/dL. Buen control.' },
-      { fecha: '2026-04-10', motivo: 'Seguimiento', diagnostico: 'Diabetes tipo 2', receta: 'Metformina 500mg c/12h', notas: 'Ajuste de dosis.' },
-    ]
-  },
-  {
-    id: 3,
-    nombre: 'Ana López',
-    edad: 28,
-    sexo: 'F',
-    ultimaVisita: '2026-06-18',
-    diagnostico: 'Migraña crónica',
-    consultas: [
-      { fecha: '2026-06-18', motivo: 'Control de cefaleas', diagnostico: 'Migraña crónica', receta: 'Sumatriptán 50mg al inicio del dolor', notas: 'Frecuencia: 3 episodios/semana.' },
-    ]
-  },
-  {
-    id: 4,
-    nombre: 'Roberto Díaz',
-    edad: 45,
-    sexo: 'M',
-    ultimaVisita: '2026-06-15',
-    diagnostico: 'Lumbalgia',
-    consultas: [
-      { fecha: '2026-06-15', motivo: 'Dolor de espalda', diagnostico: 'Lumbalgia mecánica', receta: 'Ibuprofeno 400mg c/8h x 5 días', notas: 'Fisioterapia recomendada.' },
-      { fecha: '2026-05-01', motivo: 'Dolor lumbar persistente', diagnostico: 'Espasmo muscular', receta: 'Relajante muscular', notas: 'Inicio de cuadro.' },
-    ]
-  },
-  {
-    id: 5,
-    nombre: 'Sofía Morales',
-    edad: 61,
-    sexo: 'F',
-    ultimaVisita: '2026-06-10',
-    diagnostico: 'Hipotiroidismo',
-    consultas: [
-      { fecha: '2026-06-10', motivo: 'Chequeo anual', diagnostico: 'Hipotiroidismo controlado', receta: 'Levotiroxina 75mcg en ayuno', notas: 'TSH: 2.1 — dentro de rango.' },
-    ]
-  },
-])
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
 const busqueda = ref('')
+const pacientes = ref([])
 const pacienteSeleccionado = ref(null)
 const consultaExpandida = ref(null)
+const notasPorPaciente = ref({})
+
+onMounted(async () => {
+  const res = await fetch(`${BASE_URL}/pacientes`, { headers: getHeaders() })
+  if (res.ok) pacientes.value = await res.json()
+})
+
+const cargarNotas = async (pacId) => {
+  if (notasPorPaciente.value[pacId]) return
+  const res = await fetch(`${BASE_URL}/notas/paciente/${pacId}`, { headers: getHeaders() })
+  if (res.ok) notasPorPaciente.value[pacId] = await res.json()
+}
+
+const seleccionarPaciente = async (p) => {
+  pacienteSeleccionado.value = p
+  consultaExpandida.value = null
+  await cargarNotas(p.pacId)
+}
+
+const consultasDelPaciente = computed(() => {
+  if (!pacienteSeleccionado.value) return []
+  return notasPorPaciente.value[pacienteSeleccionado.value.pacId] ?? []
+})
 
 const pacientesFiltrados = computed(() => {
   const q = busqueda.value.toLowerCase()
   if (!q) return pacientes.value
   return pacientes.value.filter(p =>
-    p.nombre.toLowerCase().includes(q) ||
-    p.diagnostico.toLowerCase().includes(q)
+    `${p.pacNombre} ${p.pacApePat}`.toLowerCase().includes(q)
   )
 })
 
-const seleccionarPaciente = (p) => {
-  pacienteSeleccionado.value = p
-  consultaExpandida.value = null
+const toggleConsulta = (idx) => { consultaExpandida.value = consultaExpandida.value === idx ? null : idx }
+
+const formatearFecha = (f) => {
+  if (!f) return '—'
+  return new Date(f).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-const toggleConsulta = (idx) => {
-  consultaExpandida.value = consultaExpandida.value === idx ? null : idx
-}
-
-const formatearFecha = (fechaStr) => {
-  const [y, m, d] = fechaStr.split('-')
-  const fecha = new Date(y, m - 1, d)
-  return fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
-}
-
-const inicialNombre = (nombre) => nombre.charAt(0).toUpperCase()
-
-const colorSexo = (sexo) => sexo === 'F' ? 'avatar-f' : 'avatar-m'
-
-const cerrarSesion = () => {
-  localStorage.clear()
-  router.push('/login')
-}
+const inicialNombre = (nombre) => (nombre ?? '?').charAt(0).toUpperCase()
+const colorSexo = (sexo) => sexo === 'Femenino' ? 'avatar-f' : 'avatar-m'
+const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 </script>
 
 <template>
   <div class="pantalla-layout">
-
     <aside class="sidebar-izquierdo">
-      <div class="brand">
-        <span class="logo-icon">+</span>
-        <h1>MediCita</h1>
-      </div>
+      <div class="brand"><span class="logo-icon">+</span><h1>MediCita</h1></div>
       <nav class="menu-navegacion">
-        <router-link to="/medico/inicio" class="enlace-menu">
-          <span class="icono">🏠</span> Inicio
-        </router-link>
-        <router-link to="/medico/perfil" class="enlace-menu">
-          <span class="icono">👤</span> Mi Perfil
-        </router-link>
-        <router-link to="/medico/agenda" class="enlace-menu">
-          <span class="icono">📅</span> Mis Citas
-        </router-link>
-        <router-link to="/medico/historiales" class="enlace-menu activo">
-          <span class="icono">📂</span> Historial Médico
-        </router-link>
+        <router-link to="/medico/inicio" class="enlace-menu"><span>🏠</span> Inicio</router-link>
+        <router-link to="/medico/perfil" class="enlace-menu"><span>👤</span> Mi Perfil</router-link>
+        <router-link to="/medico/agenda" class="enlace-menu"><span>📅</span> Mis Citas</router-link>
+        <router-link to="/medico/historiales" class="enlace-menu activo"><span>📂</span> Historial Médico</router-link>
       </nav>
-      <div class="sidebar-pie">
-        <button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button>
-      </div>
+      <div class="sidebar-pie"><button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button></div>
     </aside>
 
     <div class="contenedor-dashboard">
-
       <div class="cabecera-medico">
         <h1 class="saludo-principal">📂 Historial Médico</h1>
         <span class="fecha-cabecera">{{ pacientes.length }} pacientes registrados</span>
       </div>
 
       <div class="layout-historial">
-
-        <!-- Panel izquierdo: lista de pacientes -->
         <div class="panel-pacientes">
           <div class="barra-busqueda">
-            <input
-              v-model="busqueda"
-              type="text"
-              class="input-busqueda"
-              placeholder="🔍 Buscar paciente o diagnóstico..."
-            />
+            <input v-model="busqueda" type="text" class="input-busqueda" placeholder="🔍 Buscar paciente..." />
           </div>
-
           <div class="lista-pacientes">
-            <div
-              v-for="paciente in pacientesFiltrados"
-              :key="paciente.id"
+            <div v-for="paciente in pacientesFiltrados" :key="paciente.pacId"
               class="fila-paciente"
-              :class="{ 'fila-activa': pacienteSeleccionado?.id === paciente.id }"
-              @click="seleccionarPaciente(paciente)"
-            >
-              <div :class="['avatar-paciente', colorSexo(paciente.sexo)]">
-                {{ inicialNombre(paciente.nombre) }}
-              </div>
+              :class="{ 'fila-activa': pacienteSeleccionado?.pacId === paciente.pacId }"
+              @click="seleccionarPaciente(paciente)">
+              <div :class="['avatar-paciente', colorSexo(paciente.pacSexo)]">{{ inicialNombre(paciente.pacNombre) }}</div>
               <div class="info-paciente-fila">
-                <p class="nombre-paciente-lista">{{ paciente.nombre }}</p>
-                <p class="meta-paciente">{{ paciente.edad }} años · Última visita: {{ formatearFecha(paciente.ultimaVisita) }}</p>
-                <p class="diagnostico-lista">{{ paciente.diagnostico }}</p>
+                <p class="nombre-paciente-lista">{{ paciente.pacNombre }} {{ paciente.pacApePat }}</p>
+                <p class="meta-paciente">{{ formatearFecha(paciente.pacFechaNac) }}</p>
               </div>
-              <span class="conteo-consultas">{{ paciente.consultas.length }}</span>
+              <span class="conteo-consultas">{{ (notasPorPaciente[paciente.pacId] ?? []).length }}</span>
             </div>
-
-            <div v-if="pacientesFiltrados.length === 0" class="sin-resultados">
-              <p>No se encontraron pacientes</p>
-            </div>
+            <div v-if="pacientesFiltrados.length === 0" class="sin-resultados"><p>No se encontraron pacientes</p></div>
           </div>
         </div>
 
-        <!-- Panel derecho: detalle del paciente -->
         <div class="panel-detalle">
-
           <div v-if="!pacienteSeleccionado" class="estado-vacio">
             <div class="icono-vacio">📋</div>
             <p class="titulo-vacio">Selecciona un paciente</p>
-            <p class="subtitulo-vacio">Haz clic en un paciente de la lista para ver su historial completo</p>
+            <p class="subtitulo-vacio">Haz clic en un paciente para ver su historial</p>
           </div>
 
           <div v-else>
-            <!-- Encabezado del paciente -->
             <div class="tarjeta-encabezado-paciente">
-              <div :class="['avatar-grande', colorSexo(pacienteSeleccionado.sexo)]">
-                {{ inicialNombre(pacienteSeleccionado.nombre) }}
-              </div>
+              <div :class="['avatar-grande', colorSexo(pacienteSeleccionado.pacSexo)]">{{ inicialNombre(pacienteSeleccionado.pacNombre) }}</div>
               <div class="datos-encabezado">
-                <h2 class="nombre-detalle">{{ pacienteSeleccionado.nombre }}</h2>
+                <h2 class="nombre-detalle">{{ pacienteSeleccionado.pacNombre }} {{ pacienteSeleccionado.pacApePat }}</h2>
                 <div class="badges-datos">
-                  <span class="badge-dato">{{ pacienteSeleccionado.edad }} años</span>
-                  <span class="badge-dato">{{ pacienteSeleccionado.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
-                  <span class="badge-dato diagnostico-badge">{{ pacienteSeleccionado.diagnostico }}</span>
+                  <span class="badge-dato">{{ pacienteSeleccionado.pacSexo }}</span>
                 </div>
-                <p class="ultima-visita-texto">
-                  Última visita: {{ formatearFecha(pacienteSeleccionado.ultimaVisita) }}
-                </p>
+                <p class="ultima-visita-texto">Nacimiento: {{ formatearFecha(pacienteSeleccionado.pacFechaNac) }}</p>
               </div>
               <div class="resumen-consultas">
-                <span class="numero-resumen">{{ pacienteSeleccionado.consultas.length }}</span>
+                <span class="numero-resumen">{{ consultasDelPaciente.length }}</span>
                 <span class="label-resumen">consulta(s)</span>
               </div>
             </div>
 
-            <!-- Historial de consultas -->
             <div class="seccion-historial">
               <h3 class="titulo-historial">Historial de consultas</h3>
-
               <div class="linea-tiempo">
-                <div
-                  v-for="(consulta, idx) in pacienteSeleccionado.consultas"
-                  :key="idx"
-                  class="nodo-consulta"
-                >
+                <div v-for="(consulta, idx) in consultasDelPaciente" :key="idx" class="nodo-consulta">
                   <div class="punto-linea"></div>
                   <div class="tarjeta-consulta" :class="{ 'tarjeta-expandida': consultaExpandida === idx }">
                     <div class="cabecera-consulta" @click="toggleConsulta(idx)">
                       <div class="info-consulta-header">
-                        <span class="fecha-consulta">{{ formatearFecha(consulta.fecha) }}</span>
-                        <p class="motivo-consulta">{{ consulta.motivo }}</p>
+                        <span class="fecha-consulta">{{ formatearFecha(consulta.notaFechaCreacion) }}</span>
+                        <p class="motivo-consulta">{{ consulta.notaDiagnostico }}</p>
                       </div>
                       <div class="acciones-consulta">
-                        <span class="badge-diagnostico">{{ consulta.diagnostico }}</span>
                         <span class="chevron">{{ consultaExpandida === idx ? '▲' : '▼' }}</span>
                       </div>
                     </div>
-
                     <div v-if="consultaExpandida === idx" class="cuerpo-consulta">
                       <div class="dato-consulta">
                         <span class="etiqueta-dato">💊 Receta</span>
-                        <p class="valor-dato">{{ consulta.receta || '—' }}</p>
+                        <p class="valor-dato">{{ consulta.notaReceta || '—' }}</p>
                       </div>
                       <div class="dato-consulta">
-                        <span class="etiqueta-dato">📝 Notas clínicas</span>
-                        <p class="valor-dato">{{ consulta.notas || '—' }}</p>
+                        <span class="etiqueta-dato">📝 Diagnóstico</span>
+                        <p class="valor-dato">{{ consulta.notaDiagnostico || '—' }}</p>
                       </div>
                     </div>
                   </div>
                 </div>
+                <div v-if="consultasDelPaciente.length === 0" class="sin-resultados">Sin consultas registradas</div>
               </div>
             </div>
-
           </div>
         </div>
-
       </div>
     </div>
   </div>
