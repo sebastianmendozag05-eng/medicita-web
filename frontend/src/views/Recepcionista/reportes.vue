@@ -3,63 +3,52 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const periodoSeleccionado = ref('hoy')
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
+const periodoSeleccionado = ref('hoy')
 const periodos = [
   { value: 'hoy', label: 'Hoy' },
   { value: 'semana', label: 'Esta semana' },
   { value: 'mes', label: 'Este mes' },
 ]
 
-const datosReporte = {
-  hoy: {
-    totalCitas: 35, completadas: 18, canceladas: 3, pendientes: 6,
-    porMedico: [
-      { nombre: 'Dr. Ramírez', citas: 12, completadas: 8 },
-      { nombre: 'Dra. López',  citas: 10, completadas: 5 },
-      { nombre: 'Dr. Torres',  citas: 8,  completadas: 3 },
-      { nombre: 'Dra. Vega',   citas: 5,  completadas: 2 },
-    ],
-    porHora: [
-      { hora: '08:00', cantidad: 4 }, { hora: '09:00', cantidad: 7 },
-      { hora: '10:00', cantidad: 9 }, { hora: '11:00', cantidad: 8 },
-      { hora: '12:00', cantidad: 4 }, { hora: '13:00', cantidad: 3 },
-    ]
-  },
-  semana: {
-    totalCitas: 187, completadas: 142, canceladas: 15, pendientes: 30,
-    porMedico: [
-      { nombre: 'Dr. Ramírez', citas: 60, completadas: 48 },
-      { nombre: 'Dra. López',  citas: 55, completadas: 42 },
-      { nombre: 'Dr. Torres',  citas: 42, completadas: 32 },
-      { nombre: 'Dra. Vega',   citas: 30, completadas: 20 },
-    ],
-    porHora: [
-      { hora: 'Lun', cantidad: 38 }, { hora: 'Mar', cantidad: 42 },
-      { hora: 'Mié', cantidad: 35 }, { hora: 'Jue', cantidad: 40 },
-      { hora: 'Vie', cantidad: 32 },
-    ]
-  },
-  mes: {
-    totalCitas: 820, completadas: 634, canceladas: 58, pendientes: 128,
-    porMedico: [
-      { nombre: 'Dr. Ramírez', citas: 260, completadas: 210 },
-      { nombre: 'Dra. López',  citas: 240, completadas: 185 },
-      { nombre: 'Dr. Torres',  citas: 190, completadas: 145 },
-      { nombre: 'Dra. Vega',   citas: 130, completadas: 94  },
-    ],
-    porHora: [
-      { hora: 'Sem 1', cantidad: 198 }, { hora: 'Sem 2', cantidad: 215 },
-      { hora: 'Sem 3', cantidad: 220 }, { hora: 'Sem 4', cantidad: 187 },
-    ]
+const resumen = ref({ total_citas: 0, completadas: 0, canceladas: 0, pendientes: 0, medicos_activos: 0 })
+const porMedico = ref([])
+
+onMounted(async () => {
+  const [resRes, resMed] = await Promise.all([
+    fetch(`${BASE_URL}/reportes/resumen`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/medicos`, { headers: getHeaders() })
+  ])
+  if (resRes.ok) resumen.value = await resRes.json()
+  if (resMed.ok) {
+    const medicos = await resMed.json()
+    const promises = medicos.map(m => fetch(`${BASE_URL}/reportes/medico/${m.medId}`, { headers: getHeaders() }).then(r => r.json()))
+    const results = await Promise.all(promises)
+    porMedico.value = results.map(r => ({
+      nombre: `Dr. ${r.medico?.medNombre} ${r.medico?.medApePat}`,
+      citas: r.total,
+      completadas: r.completadas
+    }))
   }
-}
+})
 
-const datos = computed(() => datosReporte[periodoSeleccionado.value])
-const maxCantidad = computed(() => Math.max(...datos.value.porHora.map(h => h.cantidad)))
-const porcentajeCompletadas = computed(() => Math.round((datos.value.completadas / datos.value.totalCitas) * 100))
-const barraAncho = (citas, total) => Math.round((citas / total) * 100) + '%'
+const datos = computed(() => ({
+  totalCitas: resumen.value.total_citas,
+  completadas: resumen.value.completadas,
+  canceladas: resumen.value.canceladas,
+  pendientes: resumen.value.pendientes,
+  porMedico: porMedico.value,
+  porHora: []
+}))
 
+const porcentajeCompletadas = computed(() => {
+  if (!datos.value.totalCitas) return 0
+  return Math.round((datos.value.completadas / datos.value.totalCitas) * 100)
+})
+
+const barraAncho = (citas, total) => total ? Math.round((citas / total) * 100) + '%' : '0%'
 const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 </script>
 
