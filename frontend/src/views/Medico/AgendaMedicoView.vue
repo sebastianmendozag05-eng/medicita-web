@@ -3,27 +3,37 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
-// --- Datos de ejemplo (reemplazar con llamada a tu API) ---
-const todasLasCitas = ref([
-  { id: 1, paciente: 'María González', motivo: 'Consulta general', fecha: '2026-06-20', hora: '09:00', estado: 'pendiente' },
-  { id: 2, paciente: 'Carlos Ramírez', motivo: 'Revisión de resultados', fecha: '2026-06-20', hora: '10:30', estado: 'pendiente' },
-  { id: 3, paciente: 'Ana López',      motivo: 'Control de presión', fecha: '2026-06-21', hora: '08:30', estado: 'pendiente' },
-  { id: 4, paciente: 'Roberto Díaz',   motivo: 'Dolor de cabeza recurrente', fecha: '2026-06-21', hora: '11:00', estado: 'pendiente' },
-  { id: 5, paciente: 'Sofía Morales',  motivo: 'Chequeo anual', fecha: '2026-06-23', hora: '09:30', estado: 'pendiente' },
-  { id: 6, paciente: 'Luis Hernández', motivo: 'Seguimiento tratamiento', fecha: '2026-06-24', hora: '14:00', estado: 'pendiente' },
-])
-
-// --- Calendario ---
 const hoy = new Date()
 const mesActual = ref(hoy.getMonth())
 const anioActual = ref(hoy.getFullYear())
 const fechaSeleccionada = ref(hoy.toISOString().split('T')[0])
 const filtroBusqueda = ref('')
 const filtroEstado = ref('todos')
+const todasLasCitas = ref([])
 
 const nombresMeses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const diasSemana = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+
+onMounted(async () => {
+  const medId = localStorage.getItem('medicoId') ?? 1
+  const inicio = `${anioActual.value}-${String(mesActual.value+1).padStart(2,'0')}-01`
+  const fin = `${anioActual.value}-${String(mesActual.value+1).padStart(2,'0')}-31`
+  const res = await fetch(`${BASE_URL}/agenda/medico/${medId}/semana?inicio=${inicio}&fin=${fin}`, { headers: getHeaders() })
+  if (res.ok) {
+    const data = await res.json()
+    todasLasCitas.value = (data.citas ?? []).map(c => ({
+      id: c.citId,
+      paciente: `${c.paciente?.pacNombre ?? ''} ${c.paciente?.pacApePat ?? ''}`,
+      motivo: c.citMotivo,
+      fecha: c.citFecha?.split('T')[0] ?? c.citFecha,
+      hora: c.citHora?.substring(0,5),
+      estado: c.citEstatus
+    }))
+  }
+})
 
 const diasDelMes = computed(() => {
   const primerDia = new Date(anioActual.value, mesActual.value, 1).getDay()
@@ -40,74 +50,41 @@ const fechaFormato = (dia) => {
   return `${anioActual.value}-${m}-${d}`
 }
 
-const tieneCitas = (dia) => {
-  if (!dia) return false
-  return todasLasCitas.value.some(c => c.fecha === fechaFormato(dia))
-}
+const tieneCitas = (dia) => dia && todasLasCitas.value.some(c => c.fecha === fechaFormato(dia))
+const seleccionarDia = (dia) => { if (dia) fechaSeleccionada.value = fechaFormato(dia) }
+const mesPrevio = () => { if (mesActual.value === 0) { mesActual.value = 11; anioActual.value-- } else mesActual.value-- }
+const mesSiguiente = () => { if (mesActual.value === 11) { mesActual.value = 0; anioActual.value++ } else mesActual.value++ }
+const esHoy = (dia) => dia && fechaFormato(dia) === hoy.toISOString().split('T')[0]
+const esDiaSeleccionado = (dia) => dia && fechaFormato(dia) === fechaSeleccionada.value
 
-const seleccionarDia = (dia) => {
-  if (!dia) return
-  fechaSeleccionada.value = fechaFormato(dia)
-}
-
-const mesPrevio = () => {
-  if (mesActual.value === 0) { mesActual.value = 11; anioActual.value-- }
-  else mesActual.value--
-}
-
-const mesSiguiente = () => {
-  if (mesActual.value === 11) { mesActual.value = 0; anioActual.value++ }
-  else mesActual.value++
-}
-
-const esHoy = (dia) => {
-  if (!dia) return false
-  return fechaFormato(dia) === hoy.toISOString().split('T')[0]
-}
-
-const esDiaSeleccionado = (dia) => {
-  if (!dia) return false
-  return fechaFormato(dia) === fechaSeleccionada.value
-}
-
-// --- Lista de citas filtradas ---
-const citasFiltradas = computed(() => {
-  return todasLasCitas.value.filter(c => {
-    const coincideFecha = c.fecha === fechaSeleccionada.value
-    const coincideBusqueda = c.paciente.toLowerCase().includes(filtroBusqueda.value.toLowerCase()) ||
-                             c.motivo.toLowerCase().includes(filtroBusqueda.value.toLowerCase())
-    const coincideEstado = filtroEstado.value === 'todos' || c.estado === filtroEstado.value
-    return coincideFecha && coincideBusqueda && coincideEstado
-  })
-})
+const citasFiltradas = computed(() => todasLasCitas.value.filter(c => {
+  const coincideFecha = c.fecha === fechaSeleccionada.value
+  const coincideBusqueda = c.paciente.toLowerCase().includes(filtroBusqueda.value.toLowerCase()) || c.motivo.toLowerCase().includes(filtroBusqueda.value.toLowerCase())
+  const coincideEstado = filtroEstado.value === 'todos' || c.estado === filtroEstado.value
+  return coincideFecha && coincideBusqueda && coincideEstado
+}))
 
 const citasProximas = computed(() => {
   const hoyStr = hoy.toISOString().split('T')[0]
-  return todasLasCitas.value
-    .filter(c => c.fecha >= hoyStr && c.fecha !== fechaSeleccionada.value)
-    .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora))
-    .slice(0, 5)
+  return todasLasCitas.value.filter(c => c.fecha >= hoyStr && c.fecha !== fechaSeleccionada.value).sort((a,b) => (a.fecha+a.hora).localeCompare(b.fecha+b.hora)).slice(0,5)
 })
 
-const formatearFechaLegible = (fechaStr) => {
-  const [y, m, d] = fechaStr.split('-')
-  const fecha = new Date(y, m - 1, d)
-  return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+const formatearFechaLegible = (f) => {
+  if (!f) return ''
+  return new Date(f).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-const colorEstado = (estado) => {
-  const colores = { pendiente: 'estado-pendiente', completada: 'estado-completada', cancelada: 'estado-cancelada' }
-  return colores[estado] || 'estado-pendiente'
+const colorEstado = (e) => ({ agendada: 'estado-pendiente', confirmada: 'estado-pendiente', completada: 'estado-completada', cancelada: 'estado-cancelada' })[e] || 'estado-pendiente'
+
+const cambiarEstado = async (cita, nuevoEstado) => {
+  const res = await fetch(`${BASE_URL}/citas/${cita.id}`, {
+    method: 'PUT', headers: getHeaders(),
+    body: JSON.stringify({ citEstatus: nuevoEstado })
+  })
+  if (res.ok) cita.estado = nuevoEstado
 }
 
-const cambiarEstado = (cita, nuevoEstado) => {
-  cita.estado = nuevoEstado
-}
-
-const cerrarSesion = () => {
-  localStorage.clear()
-  router.push('/login')
-}
+const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 </script>
 
 <template>
