@@ -90,22 +90,26 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
 const editando = ref(false)
 const mensajeGuardado = ref(false)
-
-const formulario = ref({
-  nombre: 'Administrador',
-  apePat: 'Del Sistema',
-  apeMat: '',
-  correo: 'admin@medicita.mx',
-  telefono: '4421234567',
-})
-
-const formularioOriginal = { ...formulario.value }
-
 const passwords = ref({ actual: '', nueva: '', confirmar: '' })
+
+const formulario = ref({ nombre: '', apePat: '', apeMat: '', correo: '', telefono: '' })
+let formularioOriginal = {}
+
+onMounted(() => {
+  const nombre = localStorage.getItem('usuarioNombre') ?? ''
+  const partes = nombre.split(' ')
+  formulario.value.nombre = partes[0] ?? ''
+  formulario.value.apePat = partes[1] ?? ''
+  formulario.value.correo = localStorage.getItem('usuarioCorreo') ?? ''
+  formularioOriginal = { ...formulario.value }
+})
 
 const cancelarEdicion = () => {
   Object.assign(formulario.value, formularioOriginal)
@@ -114,6 +118,8 @@ const cancelarEdicion = () => {
 }
 
 const guardarCambios = () => {
+  localStorage.setItem('usuarioNombre', `${formulario.value.nombre} ${formulario.value.apePat}`)
+  localStorage.setItem('usuarioCorreo', formulario.value.correo)
   editando.value = false
   mensajeGuardado.value = true
   passwords.value = { actual: '', nueva: '', confirmar: '' }

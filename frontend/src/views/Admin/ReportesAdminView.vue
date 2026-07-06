@@ -44,7 +44,7 @@
       <!-- Distribución por especialidad -->
       <div class="card">
         <h3>Citas por especialidad</h3>
-        <div class="esp-list">
+        <div class="esp-list" v-if="porEspecialidad.length > 0">
           <div class="esp-row" v-for="e in porEspecialidad" :key="e.nombre">
             <span class="esp-nombre">{{ e.nombre }}</span>
             <div class="esp-bar-wrap">
@@ -91,42 +91,100 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 
-const periodoSeleccionado = ref('mes')
+const BASE_URL = 'http://localhost:8000/api/v1'
 
-const resumen = ref([
-  { icon: '📅', label: 'Total de citas',       value: '312' },
-  { icon: '✅', label: 'Completadas',           value: '258' },
-  { icon: '❌', label: 'Canceladas',            value: '31'  },
-  { icon: '👥', label: 'Pacientes atendidos',   value: '194' },
-])
+const getHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${localStorage.getItem('token')}`
+})
 
-const citasPorDia = ref([
-  { dia: 'Lun', total: 28 },
-  { dia: 'Mar', total: 34 },
-  { dia: 'Mié', total: 22 },
-  { dia: 'Jue', total: 40 },
-  { dia: 'Vie', total: 36 },
-  { dia: 'Sáb', total: 18 },
-  { dia: 'Dom', total: 8  },
-])
+const editando = ref(false)
+const mensajeGuardado = ref(false)
 
-const maxCitas = computed(() => Math.max(...citasPorDia.value.map(d => d.total)))
+const formulario = ref({
+  nombre: '',
+  apePat: '',
+  apeMat: '',
+  correo: '',
+  telefono: ''
+})
 
-const porEspecialidad = ref([
-  { nombre: 'Medicina General', pct: 42 },
-  { nombre: 'Pediatría',        pct: 28 },
-  { nombre: 'Cardiología',      pct: 18 },
-  { nombre: 'Ginecología',      pct: 12 },
-])
+const formularioOriginal = ref({})
 
-const medicos = ref([
-  { nombre: 'Dr. López',    especialidad: 'Cardiología',      total: 98,  completadas: 82, canceladas: 8,  asistencia: 84 },
-  { nombre: 'Dra. Ramírez', especialidad: 'Pediatría',         total: 112, completadas: 97, canceladas: 9,  asistencia: 87 },
-  { nombre: 'Dr. Gómez',   especialidad: 'Medicina General', total: 76,  completadas: 55, canceladas: 14, asistencia: 72 },
-  { nombre: 'Dra. Vargas', especialidad: 'Ginecología',       total: 64,  completadas: 58, canceladas: 4,  asistencia: 91 },
-])
+const passwords = ref({
+  actual: '',
+  nueva: '',
+  confirmar: ''
+})
+
+const cargarPerfil = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/user`, {
+      headers: getHeaders()
+    })
+
+    if (!res.ok) {
+      throw new Error('Error al obtener el perfil.')
+    }
+
+    const usuario = await res.json()
+
+    formulario.value = {
+      nombre: usuario.nombre || '',
+      apePat: usuario.apePat || '',
+      apeMat: usuario.apeMat || '',
+      correo: usuario.email || '',
+      telefono: usuario.telefono || ''
+    }
+
+    formularioOriginal.value = { ...formulario.value }
+
+  } catch (error) {
+    console.error('Error al cargar el perfil:', error)
+  }
+}
+
+const cancelarEdicion = () => {
+  formulario.value = { ...formularioOriginal.value }
+
+  passwords.value = {
+    actual: '',
+    nueva: '',
+    confirmar: ''
+  }
+
+  editando.value = false
+}
+
+const guardarCambios = async () => {
+  try {
+    // Aquí posteriormente se hará el PUT al backend.
+
+    formularioOriginal.value = { ...formulario.value }
+
+    editando.value = false
+    mensajeGuardado.value = true
+
+    passwords.value = {
+      actual: '',
+      nueva: '',
+      confirmar: ''
+    }
+
+    setTimeout(() => {
+      mensajeGuardado.value = false
+    }, 3000)
+
+  } catch (error) {
+    console.error('Error al guardar cambios:', error)
+  }
+}
+
+onMounted(() => {
+  cargarPerfil()
+})
 </script>
 
 <style scoped>
