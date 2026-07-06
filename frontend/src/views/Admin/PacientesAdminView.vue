@@ -34,14 +34,14 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="p in pacientesFiltrados" :key="p.id">
-            <td class="id-col">{{ p.id }}</td>
-            <td class="nombre-col">{{ p.nombre }} {{ p.apePat }} {{ p.apeMat }}</td>
-            <td>{{ p.nss }}</td>
-            <td>{{ p.correo }}</td>
-            <td><span class="chip-sexo" :class="p.sexo.toLowerCase()">{{ p.sexo }}</span></td>
-            <td>{{ p.fechaNac }}</td>
-            <td>{{ p.telefono }}</td>
+          <tr v-for="p in pacientesFiltrados" :key="p.pacid">
+            <td class="id-col">{{ p.pacid }}</td>
+            <td class="nombre-col">{{ p.pacNombre }} {{ p.pacApePat }} {{ p.pacApeMat }}</td>
+            <td>{{ p.pacNSS }}</td>
+            <td>{{ p.pacCorreo }}</td>
+            <td><span class="chip-sexo" :class="p.pacSexo.toLowerCase()">{{ p.pacSexo }}</span></td>
+            <td>{{ p.pacFechaNac }}</td>
+            <td>{{ p.pacTelefono }}</td>
             <td class="acciones">
               <button class="icon-btn" @click="verExpediente(p)" title="Ver expediente">📋</button>
             </td>
@@ -60,29 +60,29 @@
       <div class="exp-header">
         <div class="exp-avatar">{{ iniciales(pacienteSeleccionado) }}</div>
         <div>
-          <h3>{{ pacienteSeleccionado.nombre }} {{ pacienteSeleccionado.apePat }} {{ pacienteSeleccionado.apeMat }}</h3>
-          <p>NSS: {{ pacienteSeleccionado.nss }} · {{ pacienteSeleccionado.correo }}</p>
+          <h3>{{ pacienteSeleccionado.pacNombre }} {{ pacienteSeleccionado.pacApePat }} {{ pacienteSeleccionado.pacApeMat }}</h3>
+          <p>NSS: {{ pacienteSeleccionado.pacNSS }} · {{ pacienteSeleccionado.pacCorreo }}</p>
         </div>
       </div>
 
       <div class="exp-grid">
         <div class="exp-card">
           <h4>Datos personales</h4>
-          <div class="field"><span>Sexo</span><strong>{{ pacienteSeleccionado.sexo }}</strong></div>
-          <div class="field"><span>Fecha nac.</span><strong>{{ pacienteSeleccionado.fechaNac }}</strong></div>
-          <div class="field"><span>Teléfono</span><strong>{{ pacienteSeleccionado.telefono }}</strong></div>
-          <div class="field"><span>Peso</span><strong>{{ pacienteSeleccionado.peso }} kg</strong></div>
-          <div class="field"><span>Estatura</span><strong>{{ pacienteSeleccionado.estatura }} m</strong></div>
+          <div class="field"><span>Sexo</span><strong>{{ pacienteSeleccionado.pacSexo }}</strong></div>
+          <div class="field"><span>Fecha nac.</span><strong>{{ pacienteSeleccionado.pacFechaNac }}</strong></div>
+          <div class="field"><span>Teléfono</span><strong>{{ pacienteSeleccionado.pacTelefono }}</strong></div>
+          <div class="field"><span>Peso</span><strong>{{ pacienteSeleccionado.pacPeso }} kg</strong></div>
+          <div class="field"><span>Estatura</span><strong>{{ pacienteSeleccionado.pacEstatura }} m</strong></div>
           <div class="field"><span>IMC</span><strong>{{ imc(pacienteSeleccionado) }}</strong></div>
         </div>
 
         <div class="exp-card">
           <h4>Historial de citas</h4>
           <ul class="historial-list">
-            <li v-for="h in pacienteSeleccionado.historial" :key="h.id">
-              <span class="hist-fecha">{{ h.fecha }}</span>
-              <span class="hist-desc">{{ h.medico }} — {{ h.motivo }}</span>
-              <span class="chip" :class="h.estado">{{ h.estadoLabel }}</span>
+            <li v-for="c in citasPaciente" :key="c.citId">
+              <span class="hist-fecha">{{ c.citFecha?.split('T')[0] }}</span>
+              <span class="hist-desc">Dr. {{ c.medico?.medNombre }} — {{ c.citMotivo }}</span>
+              <span class="chip" :class="c.citEstatus">{{ c.citEstatus }}</span>
             </li>
           </ul>
         </div>
@@ -92,56 +92,43 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
 const busqueda = ref('')
 const filtroSexo = ref('')
 const pacienteSeleccionado = ref(null)
+const pacientes = ref([])
+const citasPaciente = ref([])
 
-const pacientes = ref([
-  {
-    id: 1, nombre: 'Ana', apePat: 'Martínez', apeMat: 'López',
-    nss: '12345678901', correo: 'ana@mail.com', sexo: 'Femenino',
-    fechaNac: '1990-04-12', telefono: '4421234567', peso: 62, estatura: 1.65,
-    historial: [
-      { id: 1, fecha: '2025-06-10', medico: 'Dr. López',    motivo: 'Revisión general',  estado: 'completada', estadoLabel: 'Completada' },
-      { id: 2, fecha: '2025-05-20', medico: 'Dra. Ramírez', motivo: 'Control pediatría', estado: 'completada', estadoLabel: 'Completada' },
-    ]
-  },
-  {
-    id: 2, nombre: 'Luis', apePat: 'Hernández', apeMat: 'Cruz',
-    nss: '98765432100', correo: 'luis@mail.com', sexo: 'Masculino',
-    fechaNac: '1985-11-30', telefono: '4429876543', peso: 80, estatura: 1.75,
-    historial: [
-      { id: 1, fecha: '2025-06-15', medico: 'Dr. Gómez', motivo: 'Dolor de espalda', estado: 'completada', estadoLabel: 'Completada' },
-    ]
-  },
-  {
-    id: 3, nombre: 'Sofía', apePat: 'Torres', apeMat: 'Ruiz',
-    nss: '11122233344', correo: 'sofia@mail.com', sexo: 'Femenino',
-    fechaNac: '2000-07-05', telefono: '4423344556', peso: 55, estatura: 1.60,
-    historial: []
-  },
-])
+onMounted(async () => {
+  const res = await fetch(`${BASE_URL}/pacientes`, { headers: getHeaders() })
+  if (res.ok) pacientes.value = await res.json()
+})
+
+const verExpediente = async (p) => {
+  pacienteSeleccionado.value = p
+  const res = await fetch(`${BASE_URL}/citas`, { headers: getHeaders() })
+  if (res.ok) {
+    const todas = await res.json()
+    citasPaciente.value = todas.filter(c => c.pacId === p.pacId)
+  }
+}
 
 const pacientesFiltrados = computed(() => {
   const q = busqueda.value.toLowerCase()
   return pacientes.value.filter(p => {
-    const nombre = `${p.nombre} ${p.apePat} ${p.apeMat}`.toLowerCase()
-    const matchQ = !q || nombre.includes(q) || p.nss.includes(q) || p.correo.toLowerCase().includes(q)
-    const matchS = !filtroSexo.value || p.sexo === filtroSexo.value
+    const nombre = `${p.pacNombre} ${p.pacApePat} ${p.pacApeMat ?? ''}`.toLowerCase()
+    const matchQ = !q || nombre.includes(q) || (p.pacNSS ?? '').includes(q) || (p.pacCorreo ?? '').toLowerCase().includes(q)
+    const matchS = !filtroSexo.value || p.pacSexo === filtroSexo.value
     return matchQ && matchS
   })
 })
 
-const verExpediente = (p) => { pacienteSeleccionado.value = p }
-
-const iniciales = (p) => `${p.nombre[0]}${p.apePat[0]}`
-
-const imc = (p) => {
-  const val = (p.peso / (p.estatura * p.estatura)).toFixed(1)
-  return `${val}`
-}
+const iniciales = (p) => `${p.pacNombre?.[0] ?? ''}${p.pacApePat?.[0] ?? ''}`
+const imc = (p) => p.pacPeso && p.pacEstatura ? (p.pacPeso / (p.pacEstatura * p.pacEstatura)).toFixed(1) : '—'
 </script>
 
 <style scoped>
