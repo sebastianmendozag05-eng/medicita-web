@@ -10,9 +10,14 @@ class Medico extends Model
     protected $primaryKey = 'medId';
 
     protected $fillable = [
-        'medNombre', 'medApePat', 'medApeMat', 'medSexo',
+        'user_id', 'medNombre', 'medApePat', 'medApeMat', 'medSexo',
         'medEdad', 'medCorreo', 'medCedula', 'medEstatus', 'medFechaReg'
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     public function citas()
     {

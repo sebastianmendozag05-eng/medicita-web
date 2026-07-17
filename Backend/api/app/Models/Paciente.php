@@ -10,10 +10,15 @@ class Paciente extends Model
     protected $primaryKey = 'pacId';
 
     protected $fillable = [
-        'pacNombre', 'pacApePat', 'pacApeMat', 'pacSexo',
+        'user_id', 'pacNombre', 'pacApePat', 'pacApeMat', 'pacSexo',
         'pacFechaNac', 'pacNSS', 'pacCorreo', 'pacTelefono',
         'pacPeso', 'pacEstatura', 'pacEstatus', 'pacFechaReg'
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     public function citas()
     {

@@ -18,7 +18,8 @@ const nombresMeses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','
 const diasSemana = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
 
 onMounted(async () => {
-  const medId = localStorage.getItem('medicoId') ?? 1
+  const medId = localStorage.getItem('medicoId')
+  if (!medId) return
   const inicio = `${anioActual.value}-${String(mesActual.value+1).padStart(2,'0')}-01`
   const fin = `${anioActual.value}-${String(mesActual.value+1).padStart(2,'0')}-31`
   const res = await fetch(`${BASE_URL}/agenda/medico/${medId}/semana?inicio=${inicio}&fin=${fin}`, { headers: getHeaders() })

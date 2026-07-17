@@ -21,7 +21,12 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/user', function (Request $request) {
-            return $request->user();
+            $user = $request->user();
+            $data = $user->toArray();
+            $data['pacId'] = $user->paciente?->pacId;
+            $data['medId'] = $user->medico?->medId;
+            $data['astId'] = $user->asistenteMedico?->astId;
+            return $data;
         });
 
         Route::post('/logout', function (Request $request) {

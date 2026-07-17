@@ -71,7 +71,12 @@ const guardarCita = async () => {
 
   guardando.value = true
   try {
-    const pacId = parseInt(localStorage.getItem('pacId') ?? '1')
+    const pacIdRaw = localStorage.getItem('pacId')
+    if (!pacIdRaw) {
+      alert('Tu cuenta no está vinculada a un expediente de paciente. Contacta al administrador.')
+      return
+    }
+    const pacId = parseInt(pacIdRaw)
     const res = await fetch(`${BASE_URL}/citas`, {
       method: 'POST',
       headers: headers(),
