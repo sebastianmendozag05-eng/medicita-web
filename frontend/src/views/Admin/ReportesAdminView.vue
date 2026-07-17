@@ -100,90 +100,79 @@ const getHeaders = () => ({
   'Authorization': `Bearer ${localStorage.getItem('token')}`
 })
 
-const editando = ref(false)
-const mensajeGuardado = ref(false)
+const periodoSeleccionado = ref('semana')
 
-const formulario = ref({
-  nombre: '',
-  apePat: '',
-  apeMat: '',
-  correo: '',
-  telefono: ''
-})
+const resumen = ref([])
+const citasPorDia = ref([])
+const maxCitas = ref(1)
+const porEspecialidad = ref([])
+const medicos = ref([])
 
-const formularioOriginal = ref({})
+const nombresDias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
-const passwords = ref({
-  actual: '',
-  nueva: '',
-  confirmar: ''
-})
-
-const cargarPerfil = async () => {
+const cargarReportes = async () => {
   try {
-    const res = await fetch(`${BASE_URL}/user`, {
-      headers: getHeaders()
+    const [resResumen, resMedicos, resCitas] = await Promise.all([
+      fetch(`${BASE_URL}/reportes/resumen`, { headers: getHeaders() }),
+      fetch(`${BASE_URL}/medicos`, { headers: getHeaders() }),
+      fetch(`${BASE_URL}/citas`, { headers: getHeaders() })
+    ])
+
+    if (resResumen.ok) {
+      const r = await resResumen.json()
+      resumen.value = [
+        { icon: '📅', label: 'Total de citas', value: r.total_citas ?? 0 },
+        { icon: '✅', label: 'Completadas', value: r.completadas ?? 0 },
+        { icon: '✕', label: 'Canceladas', value: r.canceladas ?? 0 },
+        { icon: '👨‍⚕️', label: 'Médicos activos', value: r.medicos_activos ?? 0 }
+      ]
+    }
+
+    const listaMedicos = resMedicos.ok ? await resMedicos.json() : []
+    const listaCitas = resCitas.ok ? await resCitas.json() : []
+    const citas = Array.isArray(listaCitas) ? listaCitas : (listaCitas.data ?? [])
+
+    // Citas por día (semana actual)
+    const conteoPorDia = [0, 0, 0, 0, 0, 0, 0]
+    citas.forEach(c => {
+      if (!c.citFecha) return
+      const dia = new Date(c.citFecha).getDay()
+      conteoPorDia[dia]++
     })
+    citasPorDia.value = nombresDias.map((dia, i) => ({ dia, total: conteoPorDia[i] }))
+    maxCitas.value = Math.max(...conteoPorDia, 1)
 
-    if (!res.ok) {
-      throw new Error('Error al obtener el perfil.')
-    }
+    // Distribución por motivo/especialidad
+    const conteoMotivo = {}
+    citas.forEach(c => {
+      const motivo = c.citMotivo || 'Otro'
+      conteoMotivo[motivo] = (conteoMotivo[motivo] ?? 0) + 1
+    })
+    const totalCitas = citas.length || 1
+    porEspecialidad.value = Object.entries(conteoMotivo).map(([nombre, total]) => ({
+      nombre,
+      pct: Math.round((total / totalCitas) * 100)
+    }))
 
-    const usuario = await res.json()
-
-    formulario.value = {
-      nombre: usuario.nombre || '',
-      apePat: usuario.apePat || '',
-      apeMat: usuario.apeMat || '',
-      correo: usuario.email || '',
-      telefono: usuario.telefono || ''
-    }
-
-    formularioOriginal.value = { ...formulario.value }
-
+    // Rendimiento por médico
+    const detalles = await Promise.all(
+      listaMedicos.map(m => fetch(`${BASE_URL}/reportes/medico/${m.medId}`, { headers: getHeaders() }).then(r => r.json()))
+    )
+    medicos.value = detalles.map(d => ({
+      nombre: `Dr. ${d.medico?.medNombre ?? ''} ${d.medico?.medApePat ?? ''}`,
+      especialidad: '—',
+      total: d.total,
+      completadas: d.completadas,
+      canceladas: d.canceladas,
+      asistencia: d.total ? Math.round((d.completadas / d.total) * 100) : 0
+    }))
   } catch (error) {
-    console.error('Error al cargar el perfil:', error)
-  }
-}
-
-const cancelarEdicion = () => {
-  formulario.value = { ...formularioOriginal.value }
-
-  passwords.value = {
-    actual: '',
-    nueva: '',
-    confirmar: ''
-  }
-
-  editando.value = false
-}
-
-const guardarCambios = async () => {
-  try {
-    // Aquí posteriormente se hará el PUT al backend.
-
-    formularioOriginal.value = { ...formulario.value }
-
-    editando.value = false
-    mensajeGuardado.value = true
-
-    passwords.value = {
-      actual: '',
-      nueva: '',
-      confirmar: ''
-    }
-
-    setTimeout(() => {
-      mensajeGuardado.value = false
-    }, 3000)
-
-  } catch (error) {
-    console.error('Error al guardar cambios:', error)
+    console.error('Error al cargar reportes:', error)
   }
 }
 
 onMounted(() => {
-  cargarPerfil()
+  cargarReportes()
 })
 </script>
 

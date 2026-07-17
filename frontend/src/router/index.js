@@ -24,13 +24,13 @@ import CheckinView             from '../views/Recepcionista/tarjetas.vue'
 import ReportesView            from '../views/Recepcionista/reportes.vue'
  
 // Vistas del administrador
-import AdminLayout              from '../views/admin/AdminLayout.vue'
-import InicioAdminView          from '../views/admin/InicioAdminView.vue'
-import CitasAdminView           from '../views/admin/CitasAdminView.vue'
-import PacientesAdminView       from '../views/admin/PacientesAdminView.vue'
-import ReportesAdminView        from '../views/admin/ReportesAdminView.vue'
-import NotificacionesAdminView  from '../views/admin/NotificacionesAdminView.vue'
-import PerfilAdminView          from '../views/admin/PerfilAdminView.vue'
+import AdminLayout              from '../views/Admin/AdminLayout.vue'
+import InicioAdminView          from '../views/Admin/InicioAdminView.vue'
+import CitasAdminView           from '../views/Admin/CitasAdminView.vue'
+import PacientesAdminView       from '../views/Admin/PacientesAdminView.vue'
+import ReportesAdminView        from '../views/Admin/ReportesAdminView.vue'
+import NotificacionesAdminView  from '../views/Admin/NotificacionesAdminView.vue'
+import PerfilAdminView          from '../views/Admin/PerfilAdminView.vue'
  
 const router = createRouter({
   history: createWebHistory(),
