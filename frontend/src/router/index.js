@@ -172,14 +172,45 @@ const router = createRouter({
 // ─────────────────────────────────────────
 // GUARDIA DE NAVEGACIÓN GLOBAL
 // ─────────────────────────────────────────
-router.beforeEach((to, from, next) => {
+const BASE_URL = 'http://localhost:8000/api/v1'
+let tokenVerificado = false
+
+const cerrarSesionForzado = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('usuarioRol')
+  localStorage.removeItem('usuarioNombre')
+  localStorage.removeItem('usuarioCorreo')
+  localStorage.removeItem('pacId')
+  localStorage.removeItem('medicoId')
+  localStorage.removeItem('astId')
+}
+
+router.beforeEach(async (to, from, next) => {
   const token      = localStorage.getItem('token')
   const rolUsuario = localStorage.getItem('usuarioRol')
- 
+
+  // Si hay un token que aún no hemos validado en esta carga de la app,
+  // confirmamos con el backend que siga siendo válido (evita quedar
+  // "logueado" con un token viejo tras reiniciar el servidor/BD).
+  if (token && !tokenVerificado) {
+    tokenVerificado = true
+    try {
+      const res = await fetch(`${BASE_URL}/user`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) {
+        cerrarSesionForzado()
+        return next({ name: 'login' })
+      }
+    } catch {
+      // Sin conexión al backend: dejamos pasar, se validará en la siguiente petición real
+    }
+  }
+
   // Ruta pública: dejar pasar siempre
   if (!to.meta.requiereAuth) {
     // Si ya hay sesión activa y van al login, redirigir al área correcta
-    if (to.name === 'login' && token) {
+    if (to.name === 'login' && localStorage.getItem('token')) {
       if (rolUsuario === 'administrador')  return next('/admin')
       if (rolUsuario === 'medico')         return next('/medico/inicio')
       if (rolUsuario === 'recepcionista')  return next('/recepcionista/inicio')
@@ -187,9 +218,9 @@ router.beforeEach((to, from, next) => {
     }
     return next()
   }
- 
+
   // Ruta protegida: sin token → al login
-  if (!token) return next({ name: 'login' })
+  if (!localStorage.getItem('token')) return next({ name: 'login' })
  
   // Ruta protegida: rol incorrecto → redirigir al área correcta
   if (to.meta.rol && to.meta.rol !== rolUsuario) {

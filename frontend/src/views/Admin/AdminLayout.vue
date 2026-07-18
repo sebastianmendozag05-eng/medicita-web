@@ -89,7 +89,7 @@ const fechaHoy = computed(() => {
 })
 
 const cerrarSesion = () => {
-  localStorage.removeItem('token')
+  localStorage.clear()
   router.push('/login')
 }
 </script>
