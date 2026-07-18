@@ -19,6 +19,11 @@ class NotaConsultaController extends Controller
             'notaDiagnostico' => 'required|string',
         ]);
 
+        $user = $request->user();
+        if ($user->rol === 'medico' && (int) $user->medico?->medId !== (int) $request->medId) {
+            abort(403, 'No puedes registrar notas de consulta a nombre de otro médico.');
+        }
+
         $nota = NotaConsulta::create([
             ...$request->only([
                 'citId', 'medId', 'pacId', 'notaDiagnostico', 'notaReceta'

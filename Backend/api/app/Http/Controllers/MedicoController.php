@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Medico;
+use App\Http\Controllers\Concerns\RestringeAStaff;
 use Illuminate\Http\Request;
 
 class MedicoController extends Controller
 {
+    use RestringeAStaff;
+
     public function index()
     {
         return response()->json(Medico::all());
@@ -14,6 +17,8 @@ class MedicoController extends Controller
 
     public function store(Request $request)
     {
+        $this->verificarSoloStaff($request);
+
         $request->validate([
             'medNombre'  => 'required|string|max:50',
             'medApePat'  => 'required|string|max:50',
@@ -44,6 +49,9 @@ class MedicoController extends Controller
     public function update(Request $request, $id)
     {
         $user = $request->user();
+        if ($user->rol === 'paciente') {
+            abort(403, 'No tienes permiso para editar médicos.');
+        }
         if ($user->rol === 'medico' && (int) $user->medico?->medId !== (int) $id) {
             abort(403, 'No puedes editar el perfil de otro médico.');
         }
@@ -56,8 +64,10 @@ class MedicoController extends Controller
         return response()->json($medico);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        $this->verificarSoloStaff($request);
+
         $medico = Medico::findOrFail($id);
         $medico->update(['medEstatus' => 0]);
         return response()->json(['message' => 'Médico desactivado']);

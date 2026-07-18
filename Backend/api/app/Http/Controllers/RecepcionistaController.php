@@ -3,17 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\AsistenteMedico;
+use App\Http\Controllers\Concerns\RestringeAStaff;
 use Illuminate\Http\Request;
 
 class RecepcionistaController extends Controller
 {
-    public function index()
+    use RestringeAStaff;
+
+    public function index(Request $request)
     {
+        $this->verificarSoloStaff($request);
         return response()->json(AsistenteMedico::all());
     }
 
     public function store(Request $request)
     {
+        $this->verificarSoloStaff($request);
+
         $request->validate([
             'recNombre'   => 'required|string|max:100',
             'recApePat'   => 'required|string|max:50',
@@ -36,20 +42,33 @@ class RecepcionistaController extends Controller
         return response()->json($rec, 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $this->verificarSoloStaff($request);
         return response()->json(AsistenteMedico::findOrFail($id));
     }
 
     public function update(Request $request, $id)
     {
+        $this->verificarSoloStaff($request);
+
         $rec = AsistenteMedico::findOrFail($id);
-        $rec->update($request->only(['astNombre','astApePat','astApeMat','astEdad','astCorreo','astTelefono','astEstatus']));
+        $rec->update([
+            'astNombre'   => $request->recNombre   ?? $rec->astNombre,
+            'astApePat'   => $request->recApePat   ?? $rec->astApePat,
+            'astApeMat'   => $request->recApeMat   ?? $rec->astApeMat,
+            'astEdad'     => $request->recEdad     ?? $rec->astEdad,
+            'astCorreo'   => $request->recCorreo   ?? $rec->astCorreo,
+            'astTelefono' => $request->recTelefono ?? $rec->astTelefono,
+            'astEstatus'  => $request->astEstatus  ?? $rec->astEstatus,
+        ]);
         return response()->json($rec);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        $this->verificarSoloStaff($request);
+
         $rec = AsistenteMedico::findOrFail($id);
         $rec->update(['astEstatus' => 0]);
         return response()->json(['message' => 'Recepcionista desactivada']);

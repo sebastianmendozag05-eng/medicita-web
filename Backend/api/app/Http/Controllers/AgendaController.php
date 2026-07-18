@@ -4,13 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Cita;
 use App\Models\Medico;
+use App\Http\Controllers\Concerns\AutorizaAccesoMedico;
 use Illuminate\Http\Request;
 
 class AgendaController extends Controller
 {
+    use AutorizaAccesoMedico;
+
     // Citas de un médico por fecha
     public function porMedico(Request $request, $medId)
     {
+        $this->verificarAccesoMedico($request, (int) $medId);
+
         $request->validate([
             'fecha' => 'required|date',
         ]);
@@ -28,6 +33,8 @@ class AgendaController extends Controller
     // Agenda semanal de un médico
     public function semana(Request $request, $medId)
     {
+        $this->verificarAccesoMedico($request, (int) $medId);
+
         $request->validate([
             'inicio' => 'required|date',
             'fin'    => 'required|date',
@@ -52,6 +59,8 @@ class AgendaController extends Controller
     // Todos los médicos con sus citas del día (para recepcionista)
     public function todosMedicos(Request $request)
     {
+        $this->verificarSoloStaff($request);
+
         $request->validate([
             'fecha' => 'required|date',
         ]);
