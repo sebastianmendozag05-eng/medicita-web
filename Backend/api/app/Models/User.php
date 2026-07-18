@@ -63,4 +63,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(AsistenteMedico::class, 'user_id');
     }
+
+    public function notificaciones()
+    {
+        return $this->hasMany(Notificacion::class, 'user_id');
+    }
 }

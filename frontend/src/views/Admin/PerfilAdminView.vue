@@ -102,7 +102,19 @@ const passwords = ref({ actual: '', nueva: '', confirmar: '' })
 const formulario = ref({ nombre: '', apePat: '', apeMat: '', correo: '', telefono: '' })
 let formularioOriginal = {}
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/user`, { headers: getHeaders() })
+    if (res.ok) {
+      const u = await res.json()
+      const partes = (u.name || '').split(' ')
+      formulario.value.nombre = partes[0] ?? ''
+      formulario.value.apePat = partes.slice(1).join(' ') ?? ''
+      formulario.value.correo = u.email ?? ''
+      formularioOriginal = { ...formulario.value }
+      return
+    }
+  } catch { /* silencioso */ }
   const nombre = localStorage.getItem('usuarioNombre') ?? ''
   const partes = nombre.split(' ')
   formulario.value.nombre = partes[0] ?? ''
@@ -117,13 +129,28 @@ const cancelarEdicion = () => {
   editando.value = false
 }
 
-const guardarCambios = () => {
-  localStorage.setItem('usuarioNombre', `${formulario.value.nombre} ${formulario.value.apePat}`)
-  localStorage.setItem('usuarioCorreo', formulario.value.correo)
-  editando.value = false
-  mensajeGuardado.value = true
-  passwords.value = { actual: '', nueva: '', confirmar: '' }
-  setTimeout(() => { mensajeGuardado.value = false }, 3000)
+const guardarCambios = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/user`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        name: `${formulario.value.nombre} ${formulario.value.apePat}`.trim(),
+        email: formulario.value.correo
+      })
+    })
+    if (!res.ok) { alert('No se pudo guardar el perfil.'); return }
+
+    localStorage.setItem('usuarioNombre', `${formulario.value.nombre} ${formulario.value.apePat}`)
+    localStorage.setItem('usuarioCorreo', formulario.value.correo)
+    formularioOriginal = { ...formulario.value }
+    editando.value = false
+    mensajeGuardado.value = true
+    passwords.value = { actual: '', nueva: '', confirmar: '' }
+    setTimeout(() => { mensajeGuardado.value = false }, 3000)
+  } catch {
+    alert('Error de conexión al guardar el perfil.')
+  }
 }
 </script>
 

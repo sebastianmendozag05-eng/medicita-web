@@ -29,6 +29,7 @@ import InicioAdminView          from '../views/Admin/InicioAdminView.vue'
 import CitasAdminView           from '../views/Admin/CitasAdminView.vue'
 import PacientesAdminView       from '../views/Admin/PacientesAdminView.vue'
 import ReportesAdminView        from '../views/Admin/ReportesAdminView.vue'
+import RecepcionistasAdminView  from '../views/Admin/RecepcionistasAdminView.vue'
 import NotificacionesAdminView  from '../views/Admin/NotificacionesAdminView.vue'
 import PerfilAdminView          from '../views/Admin/PerfilAdminView.vue'
  
@@ -142,6 +143,11 @@ const router = createRouter({
           path: 'pacientes',
           name: 'admin-pacientes',
           component: PacientesAdminView
+        },
+        {
+          path: 'recepcionistas',
+          name: 'admin-recepcionistas',
+          component: RecepcionistasAdminView
         },
         {
           path: 'reportes',

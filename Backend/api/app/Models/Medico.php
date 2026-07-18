@@ -11,7 +11,7 @@ class Medico extends Model
 
     protected $fillable = [
         'user_id', 'medNombre', 'medApePat', 'medApeMat', 'medSexo',
-        'medEdad', 'medCorreo', 'medCedula', 'medEstatus', 'medFechaReg'
+        'medEdad', 'medCorreo', 'medTelefono', 'medCedula', 'medEstatus', 'medFechaReg'
     ];
 
     public function user()

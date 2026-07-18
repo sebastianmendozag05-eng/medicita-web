@@ -14,6 +14,7 @@ use App\Http\Controllers\AusenciaMedicoController;
 use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\RecepcionistaController;
+use App\Http\Controllers\NotificacionController;
 
 Route::prefix('v1')->group(function () {
     Route::post('/register', [RegisterController::class, 'store']);
@@ -29,6 +30,16 @@ Route::prefix('v1')->group(function () {
             return $data;
         });
 
+        Route::put('/user', function (Request $request) {
+            $user = $request->user();
+            $request->validate([
+                'name'  => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email,' . $user->id,
+            ]);
+            $user->update($request->only(['name', 'email']));
+            return $user;
+        });
+
         Route::post('/logout', function (Request $request) {
             $request->user()->currentAccessToken()->delete();
             return response()->json(['message' => 'Sesión cerrada']);
@@ -38,6 +49,10 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('medicos', MedicoController::class);
         Route::apiResource('pacientes', PacienteController::class);
         Route::apiResource('recepcionistas', RecepcionistaController::class);
+
+        Route::get('/notificaciones', [NotificacionController::class, 'index']);
+        Route::put('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodasLeidas']);
+        Route::put('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida']);
 
         Route::post('/expediente', [ExpedienteController::class, 'store']);
         Route::get('/expediente/{pacId}', [ExpedienteController::class, 'show']);

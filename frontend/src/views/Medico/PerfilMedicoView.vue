@@ -22,17 +22,27 @@ const perfil = ref({
 
 const perfilOriginal = ref({})
 
-onMounted(() => {
-  const nombre = localStorage.getItem('usuarioNombre') || 'Médico'
-  const email = localStorage.getItem('usuarioEmail') || ''
-  const perfilGuardado = localStorage.getItem('perfilMedico')
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
-  if (perfilGuardado) {
-    perfil.value = JSON.parse(perfilGuardado)
-  } else {
-    perfil.value.nombre = nombre
-    perfil.value.email = email
-  }
+const cargarPerfil = async () => {
+  const medId = localStorage.getItem('medicoId')
+  if (!medId) return
+  try {
+    const res = await fetch(`${BASE_URL}/medicos/${medId}`, { headers: getHeaders() })
+    if (!res.ok) return
+    const m = await res.json()
+    perfil.value.nombre = `${m.medNombre ?? ''} ${m.medApePat ?? ''} ${m.medApeMat ?? ''}`.trim()
+    perfil.value.cedula = m.medCedula || ''
+    perfil.value.telefono = m.medTelefono || ''
+    perfil.value.email = m.medCorreo || ''
+    perfil.value.horarioInicio = m.turno?.turHoraEntrada?.substring(0, 5) || perfil.value.horarioInicio
+    perfil.value.horarioFin = m.turno?.turHoraSalida?.substring(0, 5) || perfil.value.horarioFin
+  } catch { /* silencioso */ }
+}
+
+onMounted(() => {
+  cargarPerfil()
 })
 
 const activarEdicion = () => {
@@ -45,16 +55,40 @@ const cancelarEdicion = () => {
   modoEdicion.value = false
 }
 
-const guardarPerfil = () => {
+const guardarPerfil = async () => {
+  const medId = localStorage.getItem('medicoId')
+  if (!medId) { mensajeExito.value = ''; alert('Tu cuenta no está vinculada a un médico.'); return }
+
   guardando.value = true
-  setTimeout(() => {
-    localStorage.setItem('perfilMedico', JSON.stringify(perfil.value))
-    localStorage.setItem('usuarioNombre', perfil.value.nombre)
+  const [medNombre, ...resto] = perfil.value.nombre.trim().split(' ')
+  const [medApePat, ...restoApeMat] = resto
+  try {
+    const res = await fetch(`${BASE_URL}/medicos/${medId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        medNombre: medNombre || '',
+        medApePat: medApePat || '',
+        medApeMat: restoApeMat.join(' ') || null,
+        medCorreo: perfil.value.email,
+        medTelefono: perfil.value.telefono,
+        medCedula: perfil.value.cedula
+      })
+    })
+    if (res.ok) {
+      localStorage.setItem('usuarioNombre', perfil.value.nombre)
+      mensajeExito.value = 'Perfil actualizado correctamente'
+    } else {
+      mensajeExito.value = ''
+      alert('No se pudo guardar el perfil.')
+    }
+  } catch {
+    alert('Error de conexión al guardar el perfil.')
+  } finally {
     guardando.value = false
     modoEdicion.value = false
-    mensajeExito.value = 'Perfil actualizado correctamente'
     setTimeout(() => { mensajeExito.value = '' }, 3000)
-  }, 600)
+  }
 }
 
 const cerrarSesion = () => {
