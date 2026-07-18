@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\NotaConsulta;
+use App\Http\Controllers\Concerns\AutorizaAccesoPaciente;
 use Illuminate\Http\Request;
 
 class NotaConsultaController extends Controller
 {
+    use AutorizaAccesoPaciente;
+
     public function store(Request $request)
     {
         $request->validate([
@@ -27,8 +30,9 @@ class NotaConsultaController extends Controller
         return response()->json($nota, 201);
     }
 
-    public function showByPaciente($pacId)
+    public function showByPaciente(Request $request, $pacId)
     {
+        $this->verificarAccesoPaciente($request, (int) $pacId);
         $notas = NotaConsulta::with('cita')->where('pacId', $pacId)->get();
         return response()->json($notas);
     }

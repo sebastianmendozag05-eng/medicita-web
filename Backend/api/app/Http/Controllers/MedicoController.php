@@ -43,6 +43,11 @@ class MedicoController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = $request->user();
+        if ($user->rol === 'medico' && (int) $user->medico?->medId !== (int) $id) {
+            abort(403, 'No puedes editar el perfil de otro médico.');
+        }
+
         $medico = Medico::findOrFail($id);
         $medico->update($request->only([
             'medNombre', 'medApePat', 'medApeMat', 'medSexo',

@@ -3,12 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Paciente;
+use App\Http\Controllers\Concerns\AutorizaAccesoPaciente;
 use Illuminate\Http\Request;
 
 class PacienteController extends Controller
 {
-    public function index()
+    use AutorizaAccesoPaciente;
+
+    public function index(Request $request)
     {
+        if ($request->user()->rol === 'paciente') {
+            abort(403, 'No tienes permiso para listar pacientes.');
+        }
         return response()->json(Paciente::all());
     }
 
@@ -39,14 +45,16 @@ class PacienteController extends Controller
         return response()->json($paciente, 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $this->verificarAccesoPaciente($request, (int) $id);
         $paciente = Paciente::with(['citas', 'expediente'])->findOrFail($id);
         return response()->json($paciente);
     }
 
     public function update(Request $request, $id)
     {
+        $this->verificarAccesoPaciente($request, (int) $id);
         $paciente = Paciente::findOrFail($id);
         $paciente->update($request->only([
             'pacNombre', 'pacApePat', 'pacApeMat', 'pacSexo',
