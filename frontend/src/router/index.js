@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import ForgotPassword from '../views/ForgotPassword.vue'
+import ResetPassword from '../views/ResetPassword.vue'
  
 // Vistas del paciente
 import DashboardPacienteView from '../views/paciente/DashboardPacienteView.vue'
@@ -50,6 +51,11 @@ const router = createRouter({
       path: '/recuperar',
       name: 'recuperar',
       component: ForgotPassword
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPassword
     },
  
     // ─── PACIENTE ───────────────────────────────────────────────────────────────
