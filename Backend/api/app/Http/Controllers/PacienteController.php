@@ -59,11 +59,15 @@ class PacienteController extends Controller
     {
         $this->verificarAccesoPaciente($request, (int) $id);
         $paciente = Paciente::findOrFail($id);
-        $paciente->update($request->only([
+        $data = $request->only([
             'pacNombre', 'pacApePat', 'pacApeMat', 'pacSexo',
             'pacFechaNac', 'pacNSS', 'pacCorreo', 'pacTelefono',
             'pacPeso', 'pacEstatura', 'pacEstatus'
-        ]));
+        ]);
+        if ($request->user()->rol === 'paciente') {
+            unset($data['pacEstatus']);
+        }
+        $paciente->update($data);
         return response()->json($paciente);
     }
 

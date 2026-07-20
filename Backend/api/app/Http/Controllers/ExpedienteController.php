@@ -23,6 +23,8 @@ class ExpedienteController extends Controller
             'pacId' => 'required|exists:paciente,pacId|unique:expediente',
         ]);
 
+        $this->verificarAccesoPaciente($request, (int) $request->pacId);
+
         $expediente = Expediente::create($request->only([
             'pacId', 'expAlergias', 'expPadecimientos', 'expMedicamentos'
         ]));

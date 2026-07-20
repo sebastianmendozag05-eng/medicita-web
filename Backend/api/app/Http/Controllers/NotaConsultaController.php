@@ -20,6 +20,9 @@ class NotaConsultaController extends Controller
         ]);
 
         $user = $request->user();
+        if ($user->rol !== 'medico' && $user->rol !== 'administrador') {
+            abort(403, 'Solo un médico puede registrar notas de consulta.');
+        }
         if ($user->rol === 'medico' && (int) $user->medico?->medId !== (int) $request->medId) {
             abort(403, 'No puedes registrar notas de consulta a nombre de otro médico.');
         }

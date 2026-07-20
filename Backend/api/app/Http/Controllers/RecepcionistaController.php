@@ -53,7 +53,7 @@ class RecepcionistaController extends Controller
         $this->verificarSoloStaff($request);
 
         $rec = AsistenteMedico::findOrFail($id);
-        $rec->update([
+        $data = [
             'astNombre'   => $request->recNombre   ?? $rec->astNombre,
             'astApePat'   => $request->recApePat   ?? $rec->astApePat,
             'astApeMat'   => $request->recApeMat   ?? $rec->astApeMat,
@@ -61,7 +61,11 @@ class RecepcionistaController extends Controller
             'astCorreo'   => $request->recCorreo   ?? $rec->astCorreo,
             'astTelefono' => $request->recTelefono ?? $rec->astTelefono,
             'astEstatus'  => $request->astEstatus  ?? $rec->astEstatus,
-        ]);
+        ];
+        if ((int) $request->user()->asistenteMedico?->astId === (int) $rec->astId) {
+            $data['astEstatus'] = $rec->astEstatus;
+        }
+        $rec->update($data);
         return response()->json($rec);
     }
 

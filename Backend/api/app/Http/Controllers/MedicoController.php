@@ -57,10 +57,14 @@ class MedicoController extends Controller
         }
 
         $medico = Medico::findOrFail($id);
-        $medico->update($request->only([
+        $data = $request->only([
             'medNombre', 'medApePat', 'medApeMat', 'medSexo',
             'medEdad', 'medCorreo', 'medTelefono', 'medCedula', 'medEstatus'
-        ]));
+        ]);
+        if ($user->rol === 'medico') {
+            unset($data['medEstatus']);
+        }
+        $medico->update($data);
         return response()->json($medico);
     }
 

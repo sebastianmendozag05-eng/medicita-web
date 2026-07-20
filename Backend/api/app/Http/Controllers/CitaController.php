@@ -92,6 +92,7 @@ class CitaController extends Controller
     {
         $cita = Cita::findOrFail($id);
         $this->autorizar($request, $cita);
+        $user = $request->user();
 
         $request->validate([
             'citEstatus' => 'in:agendada,confirmada,completada,cancelada',
@@ -99,9 +100,12 @@ class CitaController extends Controller
 
         $estatusAnterior = $cita->citEstatus;
 
-        $cita->update($request->only([
-            'citFecha', 'citHora', 'citMotivo', 'citEstatus', 'citMotivoCancela'
-        ]));
+        $data = $request->only(['citFecha', 'citHora', 'citMotivo', 'citEstatus', 'citMotivoCancela']);
+        if ($user->rol === 'paciente' && isset($data['citEstatus']) && $data['citEstatus'] !== 'cancelada') {
+            abort(403, 'Un paciente solo puede cancelar su cita.');
+        }
+
+        $cita->update($data);
 
         if ($request->has('citEstatus') && $request->citEstatus !== $estatusAnterior) {
             $cita->load(['medico', 'paciente']);
