@@ -59,6 +59,20 @@ class PacienteController extends Controller
     {
         $this->verificarAccesoPaciente($request, (int) $id);
         $paciente = Paciente::findOrFail($id);
+
+        $request->validate([
+            'pacNombre'   => 'sometimes|string|max:50',
+            'pacApePat'   => 'sometimes|string|max:50',
+            'pacApeMat'   => 'sometimes|nullable|string|max:50',
+            'pacSexo'     => 'sometimes|string',
+            'pacFechaNac' => 'sometimes|date',
+            'pacNSS'      => 'sometimes|string|max:20',
+            'pacCorreo'   => 'sometimes|email|max:80',
+            'pacTelefono' => 'sometimes|string|max:20',
+            'pacPeso'     => 'sometimes|numeric',
+            'pacEstatura' => 'sometimes|numeric',
+        ]);
+
         $data = $request->only([
             'pacNombre', 'pacApePat', 'pacApeMat', 'pacSexo',
             'pacFechaNac', 'pacNSS', 'pacCorreo', 'pacTelefono',

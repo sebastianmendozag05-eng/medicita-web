@@ -17,9 +17,6 @@
         </div>
         <div class="info-list">
           <div class="info-row"><span>📧 Correo</span><strong>{{ formulario.correo }}</strong></div>
-          <div class="info-row"><span>📱 Teléfono</span><strong>{{ formulario.telefono || '—' }}</strong></div>
-          <div class="info-row"><span>🗓 Miembro desde</span><strong>Enero 2025</strong></div>
-          <div class="info-row"><span>🔒 Último acceso</span><strong>Hoy, 08:32</strong></div>
         </div>
       </div>
 
@@ -38,18 +35,8 @@
             </div>
           </div>
           <div class="form-group">
-            <label>Apellido Materno</label>
-            <input type="text" v-model="formulario.apeMat" :disabled="!editando" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Correo electrónico</label>
-              <input type="email" v-model="formulario.correo" :disabled="!editando" />
-            </div>
-            <div class="form-group">
-              <label>Teléfono</label>
-              <input type="tel" v-model="formulario.telefono" :disabled="!editando" />
-            </div>
+            <label>Correo electrónico</label>
+            <input type="email" v-model="formulario.correo" :disabled="!editando" />
           </div>
         </div>
 
@@ -71,6 +58,7 @@
           </div>
           <p v-if="passwords.nueva && passwords.nueva.length < 8" class="invalido">✗ Mínimo 8 caracteres.</p>
           <p v-if="passwords.confirmar && passwords.nueva !== passwords.confirmar" class="invalido">✗ Las contraseñas no coinciden.</p>
+          <p v-if="errorPassword" class="invalido">✗ {{ errorPassword }}</p>
         </div>
 
         <div class="form-actions">
@@ -98,8 +86,9 @@ const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization':
 const editando = ref(false)
 const mensajeGuardado = ref(false)
 const passwords = ref({ actual: '', nueva: '', confirmar: '' })
+const errorPassword = ref('')
 
-const formulario = ref({ nombre: '', apePat: '', apeMat: '', correo: '', telefono: '' })
+const formulario = ref({ nombre: '', apePat: '', correo: '' })
 let formularioOriginal = {}
 
 onMounted(async () => {
@@ -130,6 +119,15 @@ const cancelarEdicion = () => {
 }
 
 const guardarCambios = async () => {
+  errorPassword.value = ''
+  if (passwords.value.nueva && passwords.value.nueva.length < 8) {
+    errorPassword.value = 'La nueva contraseña debe tener al menos 8 caracteres.'
+    return
+  }
+  if (passwords.value.nueva && passwords.value.nueva !== passwords.value.confirmar) {
+    errorPassword.value = 'Las contraseñas no coinciden.'
+    return
+  }
   try {
     const res = await fetch(`${BASE_URL}/user`, {
       method: 'PUT',
@@ -140,6 +138,25 @@ const guardarCambios = async () => {
       })
     })
     if (!res.ok) { alert('No se pudo guardar el perfil.'); return }
+
+    if (passwords.value.nueva) {
+      const resPass = await fetch(`${BASE_URL}/user/password`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          password_actual: passwords.value.actual,
+          password: passwords.value.nueva,
+          password_confirmation: passwords.value.confirmar
+        })
+      })
+      const dataPass = await resPass.json()
+      if (!resPass.ok) {
+        errorPassword.value = dataPass.message ?? 'No se pudo cambiar la contraseña.'
+        return
+      }
+      // El backend rota el token al cambiar contraseña; actualizamos el guardado localmente
+      localStorage.setItem('token', dataPass.token)
+    }
 
     localStorage.setItem('usuarioNombre', `${formulario.value.nombre} ${formulario.value.apePat}`)
     localStorage.setItem('usuarioCorreo', formulario.value.correo)

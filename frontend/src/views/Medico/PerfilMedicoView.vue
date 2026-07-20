@@ -17,6 +17,7 @@ const perfil = ref({
   consultorio: '',
   horarioInicio: '08:00',
   horarioFin: '17:00',
+  diasLaborales: 'Lunes a Viernes',
   descripcion: ''
 })
 
@@ -38,6 +39,7 @@ const cargarPerfil = async () => {
     perfil.value.email = m.medCorreo || ''
     perfil.value.horarioInicio = m.turno?.turHoraEntrada?.substring(0, 5) || perfil.value.horarioInicio
     perfil.value.horarioFin = m.turno?.turHoraSalida?.substring(0, 5) || perfil.value.horarioFin
+    perfil.value.diasLaborales = m.turno?.turDiasLaborales || perfil.value.diasLaborales
   } catch { /* silencioso */ }
 }
 
@@ -60,8 +62,10 @@ const guardarPerfil = async () => {
   if (!medId) { mensajeExito.value = ''; alert('Tu cuenta no está vinculada a un médico.'); return }
 
   guardando.value = true
-  const [medNombre, ...resto] = perfil.value.nombre.trim().split(' ')
-  const [medApePat, ...restoApeMat] = resto
+  const partes = perfil.value.nombre.trim().split(/\s+/)
+  const medApeMat = partes.length >= 3 ? partes.pop() : ''
+  const medApePat = partes.length >= 2 ? partes.pop() : ''
+  const medNombre = partes.join(' ')
   try {
     const res = await fetch(`${BASE_URL}/medicos/${medId}`, {
       method: 'PUT',
@@ -69,10 +73,19 @@ const guardarPerfil = async () => {
       body: JSON.stringify({
         medNombre: medNombre || '',
         medApePat: medApePat || '',
-        medApeMat: restoApeMat.join(' ') || null,
+        medApeMat: medApeMat || null,
         medCorreo: perfil.value.email,
         medTelefono: perfil.value.telefono,
         medCedula: perfil.value.cedula
+      })
+    })
+    await fetch(`${BASE_URL}/turnos/${medId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        turHoraEntrada: perfil.value.horarioInicio,
+        turHoraSalida: perfil.value.horarioFin,
+        turDiasLaborales: perfil.value.diasLaborales
       })
     })
     if (res.ok) {

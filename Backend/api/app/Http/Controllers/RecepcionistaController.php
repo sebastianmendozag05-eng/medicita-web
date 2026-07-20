@@ -53,6 +53,14 @@ class RecepcionistaController extends Controller
         $this->verificarSoloStaff($request);
 
         $rec = AsistenteMedico::findOrFail($id);
+        $request->validate([
+            'recNombre'   => 'sometimes|string|max:100',
+            'recApePat'   => 'sometimes|string|max:50',
+            'recApeMat'   => 'sometimes|nullable|string|max:50',
+            'recCorreo'   => 'sometimes|email|max:80',
+            'recTelefono' => 'sometimes|string|max:20',
+            'recEdad'     => 'sometimes|integer',
+        ]);
         $data = [
             'astNombre'   => $request->recNombre   ?? $rec->astNombre,
             'astApePat'   => $request->recApePat   ?? $rec->astApePat,

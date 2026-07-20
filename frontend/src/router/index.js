@@ -25,6 +25,7 @@ import PacientesView           from '../views/Recepcionista/pacientes.vue'
 import CheckinView             from '../views/Recepcionista/tarjetas.vue'
 import ReportesView            from '../views/Recepcionista/reportes.vue'
 import NotificacionesRecepcionistaView from '../views/Recepcionista/notificaciones.vue'
+import PerfilRecepcionistaView from '../views/Recepcionista/perfil.vue'
  
 // Vistas del administrador
 import AdminLayout              from '../views/Admin/AdminLayout.vue'
@@ -141,6 +142,12 @@ const router = createRouter({
       name: 'recepcionista-notificaciones',
       meta: { requiereAuth: true, rol: 'recepcionista' },
       component: NotificacionesRecepcionistaView
+    },
+    {
+      path: '/recepcionista/perfil',
+      name: 'recepcionista-perfil',
+      meta: { requiereAuth: true, rol: 'recepcionista' },
+      component: PerfilRecepcionistaView
     },
  
     // ─── ADMINISTRADOR ──────────────────────────────────────────────────────────

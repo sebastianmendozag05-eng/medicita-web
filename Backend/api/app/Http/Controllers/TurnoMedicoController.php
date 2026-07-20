@@ -31,10 +31,15 @@ class TurnoMedicoController extends Controller
     public function update(Request $request, $medId)
     {
         $this->verificarAccesoMedico($request, (int) $medId);
-        $turno = TurnoMedico::where('medId', $medId)->firstOrFail();
-        $turno->update($request->only([
-            'turDiasLaborales', 'turHoraEntrada', 'turHoraSalida'
-        ]));
+        $request->validate([
+            'turDiasLaborales' => 'sometimes|string',
+            'turHoraEntrada'   => 'sometimes',
+            'turHoraSalida'    => 'sometimes',
+        ]);
+        $turno = TurnoMedico::updateOrCreate(
+            ['medId' => $medId],
+            $request->only(['turDiasLaborales', 'turHoraEntrada', 'turHoraSalida'])
+        );
         return response()->json($turno);
     }
 }

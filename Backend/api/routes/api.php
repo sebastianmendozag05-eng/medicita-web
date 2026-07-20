@@ -45,6 +45,21 @@ Route::prefix('v1')->group(function () {
             return $user;
         });
 
+        Route::put('/user/password', function (Request $request) {
+            $user = $request->user();
+            $request->validate([
+                'password_actual' => 'required|string',
+                'password'        => 'required|min:8|confirmed',
+            ]);
+            if (!\Illuminate\Support\Facades\Hash::check($request->password_actual, $user->password)) {
+                return response()->json(['message' => 'La contraseña actual es incorrecta.'], 422);
+            }
+            $user->update(['password' => \Illuminate\Support\Facades\Hash::make($request->password)]);
+            $user->tokens()->delete();
+            $token = $user->createToken('auth_token')->plainTextToken;
+            return response()->json(['message' => 'Contraseña actualizada.', 'token' => $token]);
+        });
+
         Route::post('/logout', function (Request $request) {
             $request->user()->currentAccessToken()->delete();
             return response()->json(['message' => 'Sesión cerrada']);

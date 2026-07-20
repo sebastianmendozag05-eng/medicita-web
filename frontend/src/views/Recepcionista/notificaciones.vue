@@ -59,6 +59,9 @@ onMounted(cargarNotificaciones)
         <router-link to="/recepcionista/notificaciones" class="enlace-menu activo">
           <span class="icono">🔔</span> Notificaciones
         </router-link>
+        <router-link to="/recepcionista/perfil" class="enlace-menu">
+          <span class="icono">👤</span> Mi Perfil
+        </router-link>
       </nav>
       <div class="sidebar-pie">
         <button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button>

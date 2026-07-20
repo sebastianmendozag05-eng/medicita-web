@@ -57,6 +57,16 @@ class MedicoController extends Controller
         }
 
         $medico = Medico::findOrFail($id);
+        $request->validate([
+            'medNombre'  => 'sometimes|string|max:50',
+            'medApePat'  => 'sometimes|string|max:50',
+            'medApeMat'  => 'sometimes|nullable|string|max:50',
+            'medSexo'    => 'sometimes|string',
+            'medEdad'    => 'sometimes|integer',
+            'medCorreo'  => 'sometimes|email|max:80',
+            'medTelefono'=> 'sometimes|nullable|string|max:20',
+            'medCedula'  => 'sometimes|string|max:20|unique:medico,medCedula,' . $id . ',medId',
+        ]);
         $data = $request->only([
             'medNombre', 'medApePat', 'medApeMat', 'medSexo',
             'medEdad', 'medCorreo', 'medTelefono', 'medCedula', 'medEstatus'
