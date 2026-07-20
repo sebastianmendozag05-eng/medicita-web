@@ -18,7 +18,7 @@ class RegisterController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users',
             'password' => 'required|min:8|confirmed',
-            'rol'      => 'in:paciente,medico,recepcionista,administrador',
+            'rol'      => 'in:paciente,medico,recepcionista',
         ]);
 
         $user = User::create([
@@ -28,7 +28,7 @@ class RegisterController extends Controller
             'rol'      => $request->rol ?? 'paciente',
         ]);
 
-        // Vincular con el registro de dominio pre-creado (por el admin) que coincida en correo
+        // Vincular con el registro de dominio pre-creado (por el admin) que coincida en correo, si existe
         match ($user->rol) {
             'paciente'      => Paciente::where('pacCorreo', $user->email)->whereNull('user_id')->update(['user_id' => $user->id]),
             'medico'        => Medico::where('medCorreo', $user->email)->whereNull('user_id')->update(['user_id' => $user->id]),
