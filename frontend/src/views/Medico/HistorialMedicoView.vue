@@ -63,6 +63,7 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         <router-link to="/medico/perfil" class="enlace-menu"><span>👤</span> Mi Perfil</router-link>
         <router-link to="/medico/agenda" class="enlace-menu"><span>📅</span> Mis Citas</router-link>
         <router-link to="/medico/historiales" class="enlace-menu activo"><span>📂</span> Historial Médico</router-link>
+        <router-link to="/medico/notificaciones" class="enlace-menu"><span>🔔</span> Notificaciones</router-link>
       </nav>
       <div class="sidebar-pie"><button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button></div>
     </aside>

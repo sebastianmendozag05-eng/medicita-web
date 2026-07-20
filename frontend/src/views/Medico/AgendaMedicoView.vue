@@ -27,11 +27,13 @@ onMounted(async () => {
     const data = await res.json()
     todasLasCitas.value = (data.citas ?? []).map(c => ({
       id: c.citId,
+      pacId: c.paciente?.pacId,
       paciente: `${c.paciente?.pacNombre ?? ''} ${c.paciente?.pacApePat ?? ''}`,
       motivo: c.citMotivo,
       fecha: c.citFecha?.split('T')[0] ?? c.citFecha,
       hora: c.citHora?.substring(0,5),
-      estado: c.citEstatus
+      estado: c.citEstatus,
+      tieneNota: false
     }))
   }
 })
@@ -75,6 +77,7 @@ const formatearFechaLegible = (f) => {
   return new Date(f).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
+const esPendiente = (estado) => estado === 'agendada' || estado === 'confirmada'
 const colorEstado = (e) => ({ agendada: 'estado-pendiente', confirmada: 'estado-pendiente', completada: 'estado-completada', cancelada: 'estado-cancelada' })[e] || 'estado-pendiente'
 
 const cambiarEstado = async (cita, nuevoEstado) => {
@@ -83,6 +86,55 @@ const cambiarEstado = async (cita, nuevoEstado) => {
     body: JSON.stringify({ citEstatus: nuevoEstado })
   })
   if (res.ok) cita.estado = nuevoEstado
+}
+
+// ── Modal de nota de consulta al completar una cita ──
+const modalNotaAbierto = ref(false)
+const citaEnNota = ref(null)
+const notaDiagnostico = ref('')
+const notaReceta = ref('')
+const guardandoNota = ref(false)
+const errorNota = ref('')
+
+const abrirModalNota = (cita) => {
+  citaEnNota.value = cita
+  notaDiagnostico.value = ''
+  notaReceta.value = ''
+  errorNota.value = ''
+  modalNotaAbierto.value = true
+}
+const cerrarModalNota = () => { modalNotaAbierto.value = false; citaEnNota.value = null }
+
+const guardarNotaYCompletar = async () => {
+  if (!notaDiagnostico.value.trim()) { errorNota.value = 'El diagnóstico es obligatorio.'; return }
+  const cita = citaEnNota.value
+  const medId = localStorage.getItem('medicoId')
+  guardandoNota.value = true
+  errorNota.value = ''
+  try {
+    const resNota = await fetch(`${BASE_URL}/notas`, {
+      method: 'POST', headers: getHeaders(),
+      body: JSON.stringify({
+        citId: cita.id,
+        medId: parseInt(medId),
+        pacId: cita.pacId,
+        notaDiagnostico: notaDiagnostico.value,
+        notaReceta: notaReceta.value || null
+      })
+    })
+    if (!resNota.ok) {
+      const err = await resNota.json()
+      errorNota.value = err.message ?? 'No se pudo guardar la nota.'
+      return
+    }
+    await cambiarEstado(cita, 'completada')
+    cita.tieneNota = true
+    cerrarModalNota()
+  } catch {
+    errorNota.value = 'No se pudo conectar con el servidor.'
+  } finally {
+    guardandoNota.value = false
+  }
 }
 
 const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
@@ -108,6 +160,9 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         </router-link>
         <router-link to="/medico/historiales" class="enlace-menu">
           <span class="icono">📂</span> Historial Médico
+        </router-link>
+        <router-link to="/medico/notificaciones" class="enlace-menu">
+          <span class="icono">🔔</span> Notificaciones
         </router-link>
       </nav>
       <div class="sidebar-pie">
@@ -193,7 +248,8 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
               />
               <select v-model="filtroEstado" class="select-estado">
                 <option value="todos">Todos los estados</option>
-                <option value="pendiente">Pendiente</option>
+                <option value="agendada">Agendada</option>
+                <option value="confirmada">Confirmada</option>
                 <option value="completada">Completada</option>
                 <option value="cancelada">Cancelada</option>
               </select>
@@ -214,20 +270,20 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
                 </div>
                 <div class="cita-acciones-col">
                   <button
-                    v-if="cita.estado === 'pendiente'"
-                    @click="cambiarEstado(cita, 'completada')"
+                    v-if="esPendiente(cita.estado)"
+                    @click="abrirModalNota(cita)"
                     class="btn-accion btn-completar"
                     title="Marcar como completada"
                   >✓ Completar</button>
                   <button
-                    v-if="cita.estado === 'pendiente'"
+                    v-if="esPendiente(cita.estado)"
                     @click="cambiarEstado(cita, 'cancelada')"
                     class="btn-accion btn-cancelar-cita"
                     title="Cancelar cita"
                   >✕ Cancelar</button>
                   <button
-                    v-if="cita.estado !== 'pendiente'"
-                    @click="cambiarEstado(cita, 'pendiente')"
+                    v-if="!esPendiente(cita.estado)"
+                    @click="cambiarEstado(cita, 'agendada')"
                     class="btn-accion btn-reactivar"
                     title="Reactivar cita"
                   >↩ Reactivar</button>
@@ -244,6 +300,32 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Modal: nota de consulta al completar cita -->
+    <div v-if="modalNotaAbierto" class="overlay-modal" @click.self="cerrarModalNota">
+      <div class="tarjeta-modal">
+        <h3 class="titulo-modal">Nota de consulta — {{ citaEnNota?.paciente }}</h3>
+        <p class="subtitulo-modal">Registra el diagnóstico antes de marcar la cita como completada.</p>
+
+        <div class="form-group-modal">
+          <label>Diagnóstico *</label>
+          <textarea v-model="notaDiagnostico" rows="3" placeholder="Diagnóstico del paciente..."></textarea>
+        </div>
+        <div class="form-group-modal">
+          <label>Receta (opcional)</label>
+          <textarea v-model="notaReceta" rows="2" placeholder="Medicamentos, indicaciones..."></textarea>
+        </div>
+
+        <p v-if="errorNota" class="error-msg-modal">{{ errorNota }}</p>
+
+        <div class="acciones-modal">
+          <button class="btn-secundario-modal" @click="cerrarModalNota">Cancelar</button>
+          <button class="btn-primario-modal" :disabled="guardandoNota" @click="guardarNotaYCompletar">
+            {{ guardandoNota ? 'Guardando...' : 'Guardar y completar' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -418,4 +500,31 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
   .sidebar-izquierdo { width: 100%; border-right: none; border-bottom: 1px solid #e2e8f0; }
   .barra-filtros { flex-direction: column; }
 }
+
+.overlay-modal {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+  display: flex; align-items: center; justify-content: center; z-index: 50; padding: 1rem;
+}
+.tarjeta-modal {
+  background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 440px;
+}
+.titulo-modal { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
+.subtitulo-modal { font-size: 13px; color: #64748b; margin: 0 0 16px 0; }
+.form-group-modal { margin-bottom: 14px; }
+.form-group-modal label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+.form-group-modal textarea {
+  width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+  font-size: 14px; font-family: inherit; resize: vertical; box-sizing: border-box;
+}
+.error-msg-modal { color: #b91c1c; font-size: 13px; margin: 0 0 10px 0; }
+.acciones-modal { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.btn-secundario-modal {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; background: white;
+  color: #475569; font-weight: 600; font-size: 13px; cursor: pointer;
+}
+.btn-primario-modal {
+  padding: 8px 16px; border-radius: 8px; border: none; background: #0d8a72;
+  color: white; font-weight: 600; font-size: 13px; cursor: pointer;
+}
+.btn-primario-modal:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>

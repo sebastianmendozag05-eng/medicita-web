@@ -73,6 +73,7 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         <router-link to="/recepcionista/pacientes" class="enlace-menu"><span>👥</span> Pacientes</router-link>
         <router-link to="/recepcionista/checkin"   class="enlace-menu activo"><span>✅</span> Check-in</router-link>
         <router-link to="/recepcionista/reportes"  class="enlace-menu"><span>📊</span> Reportes</router-link>
+        <router-link to="/recepcionista/notificaciones"  class="enlace-menu"><span>🔔</span> Notificaciones</router-link>
       </nav>
       <div class="sidebar-pie"><button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button></div>
     </aside>

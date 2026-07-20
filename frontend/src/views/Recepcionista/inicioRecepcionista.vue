@@ -96,6 +96,9 @@ const cerrarSesion = () => {
         <router-link to="/recepcionista/reportes" class="enlace-menu">
           <span class="icono">📊</span> Reportes
         </router-link>
+        <router-link to="/recepcionista/notificaciones" class="enlace-menu">
+          <span class="icono">🔔</span> Notificaciones
+        </router-link>
       </nav>
       <div class="sidebar-pie">
         <button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button>

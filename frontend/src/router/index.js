@@ -16,6 +16,7 @@ import InicioMedicoView    from '../views/Medico/InicioMedicoView.vue'
 import PerfilMedicoView    from '../views/Medico/PerfilMedicoView.vue'
 import AgendaMedicoView    from '../views/Medico/AgendaMedicoView.vue'
 import HistorialMedicoView from '../views/Medico/HistorialMedicoView.vue'
+import NotificacionesMedicoView from '../views/Medico/NotificacionesMedicoView.vue'
  
 // Vistas de la recepcionista
 import InicioRecepcionistaView from '../views/Recepcionista/inicioRecepcionista.vue'
@@ -23,6 +24,7 @@ import CitasRecepcionistaView  from '../views/Recepcionista/citas.vue'
 import PacientesView           from '../views/Recepcionista/pacientes.vue'
 import CheckinView             from '../views/Recepcionista/tarjetas.vue'
 import ReportesView            from '../views/Recepcionista/reportes.vue'
+import NotificacionesRecepcionistaView from '../views/Recepcionista/notificaciones.vue'
  
 // Vistas del administrador
 import AdminLayout              from '../views/Admin/AdminLayout.vue'
@@ -96,6 +98,12 @@ const router = createRouter({
       meta: { requiereAuth: true, rol: 'medico' },
       component: HistorialMedicoView
     },
+    {
+      path: '/medico/notificaciones',
+      name: 'medico-notificaciones',
+      meta: { requiereAuth: true, rol: 'medico' },
+      component: NotificacionesMedicoView
+    },
  
     // ─── RECEPCIONISTA ──────────────────────────────────────────────────────────
     {
@@ -127,6 +135,12 @@ const router = createRouter({
       name: 'recepcionista-reportes',
       meta: { requiereAuth: true, rol: 'recepcionista' },
       component: ReportesView
+    },
+    {
+      path: '/recepcionista/notificaciones',
+      name: 'recepcionista-notificaciones',
+      meta: { requiereAuth: true, rol: 'recepcionista' },
+      component: NotificacionesRecepcionistaView
     },
  
     // ─── ADMINISTRADOR ──────────────────────────────────────────────────────────

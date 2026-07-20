@@ -99,6 +99,9 @@ const cerrarSesion = () => {
         <router-link to="/medico/historiales" class="enlace-menu">
           <span class="icono">📂</span> Historial Médico
         </router-link>
+        <router-link to="/medico/notificaciones" class="enlace-menu">
+          <span class="icono">🔔</span> Notificaciones
+        </router-link>
       </nav>
 
       <div class="sidebar-pie">
