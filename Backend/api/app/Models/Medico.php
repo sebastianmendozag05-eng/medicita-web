@@ -28,4 +28,9 @@ class Medico extends Model
     {
         return $this->hasOne(TurnoMedico::class, 'medId', 'medId');
     }
+
+    public function especialidades()
+    {
+        return $this->belongsToMany(Especialidad::class, 'medico_especialidad', 'medId', 'espeId');
+    }
 }

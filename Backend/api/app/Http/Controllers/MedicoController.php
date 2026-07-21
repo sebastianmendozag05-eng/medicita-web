@@ -26,6 +26,7 @@ class MedicoController extends Controller
             'medEdad'    => 'required|integer',
             'medCorreo'  => 'required|email|max:80',
             'medCedula'  => 'required|string|max:20|unique:medico',
+            'espeId'     => 'nullable|exists:especialidad,espeId',
         ]);
 
         $medico = Medico::create([
@@ -37,12 +38,16 @@ class MedicoController extends Controller
             'medFechaReg' => now(),
         ]);
 
+        if ($request->espeId) {
+            $medico->especialidades()->attach($request->espeId);
+        }
+
         return response()->json($medico, 201);
     }
 
     public function show($id)
     {
-        $medico = Medico::with('turno')->findOrFail($id);
+        $medico = Medico::with(['turno', 'especialidades'])->findOrFail($id);
         return response()->json($medico);
     }
 
@@ -66,6 +71,7 @@ class MedicoController extends Controller
             'medCorreo'  => 'sometimes|email|max:80',
             'medTelefono'=> 'sometimes|nullable|string|max:20',
             'medCedula'  => 'sometimes|string|max:20|unique:medico,medCedula,' . $id . ',medId',
+            'espeId'     => 'sometimes|nullable|exists:especialidad,espeId',
         ]);
         $data = $request->only([
             'medNombre', 'medApePat', 'medApeMat', 'medSexo',
@@ -75,7 +81,10 @@ class MedicoController extends Controller
             unset($data['medEstatus']);
         }
         $medico->update($data);
-        return response()->json($medico);
+        if ($request->has('espeId')) {
+            $medico->especialidades()->sync($request->espeId ? [$request->espeId] : []);
+        }
+        return response()->json($medico->load('especialidades'));
     }
 
     public function destroy(Request $request, $id)

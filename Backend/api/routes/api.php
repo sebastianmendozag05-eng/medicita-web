@@ -16,6 +16,7 @@ use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\RecepcionistaController;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\EspecialidadController;
 
 Route::prefix('v1')->group(function () {
     Route::middleware('throttle:6,1')->group(function () {
@@ -24,6 +25,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/reset-password', [ForgotPasswordController::class, 'resetear']);
     });
     Route::post('/register', [RegisterController::class, 'store']);
+    Route::get('/especialidades', [EspecialidadController::class, 'index']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/user', function (Request $request) {

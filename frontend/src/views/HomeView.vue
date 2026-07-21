@@ -154,14 +154,14 @@ const router = useRouter()
 const tipoUsuario = ref('paciente') 
 const mostrarPass = ref(false)
  
-const BlackboxEspecialidades = [
-  { espeId: 1, espeNombre: 'Medicina General' },
-  { espeId: 2, espeNombre: 'Pediatría' },
-  { espeId: 3, espeNombre: 'Cardiología' },
-  { espeId: 4, espeNombre: 'Ginecología' }
-]
-const BlackboxEspecialidadesRef = ref(BlackboxEspecialidades)
-const especialidades = computed(() => BlackboxEspecialidadesRef.value)
+const especialidades = ref([])
+const cargarEspecialidades = async () => {
+  try {
+    const res = await fetch('http://localhost:8000/api/v1/especialidades')
+    if (res.ok) especialidades.value = await res.json()
+  } catch { /* silencioso */ }
+}
+cargarEspecialidades()
  
 const inicializarFormulario = () => ({
   nombre: '',
@@ -278,7 +278,8 @@ const registrarUsuario = async () => {
           medSexo: formulario.value.sexo,
           medEdad: parseInt(formulario.value.edad),
           medCorreo: formulario.value.correo,
-          medCedula: formulario.value.cedula
+          medCedula: formulario.value.cedula,
+          espeId: formulario.value.especialidadId
         })
       })
     } else {
