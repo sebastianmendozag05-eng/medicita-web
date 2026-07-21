@@ -12,7 +12,7 @@ class MedicoController extends Controller
 
     public function index()
     {
-        return response()->json(Medico::all());
+        return response()->json(Medico::with('especialidades')->get());
     }
 
     public function store(Request $request)

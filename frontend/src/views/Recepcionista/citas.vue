@@ -15,16 +15,27 @@ const pacientes = ref([])
 const citas = ref([])
 
 const nuevaCita = ref({ pacId: '', medId: '', fecha: '', hora: '', motivo: '' })
+const especialidades = ref([])
+const especialidadNuevaCita = ref('')
 
 onMounted(async () => {
-  const [resCitas, resMedicos, resPacientes] = await Promise.all([
+  const [resCitas, resMedicos, resPacientes, resEspecialidades] = await Promise.all([
     fetch(`${BASE_URL}/citas`, { headers: getHeaders() }),
     fetch(`${BASE_URL}/medicos`, { headers: getHeaders() }),
-    fetch(`${BASE_URL}/pacientes`, { headers: getHeaders() })
+    fetch(`${BASE_URL}/pacientes`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/especialidades`)
   ])
   if (resCitas.ok) citas.value = await resCitas.json()
-  if (resMedicos.ok) medicos.value = await resMedicos.json()
+  if (resMedicos.ok) medicos.value = (await resMedicos.json()).filter(m => m.medEstatus === 1)
   if (resPacientes.ok) pacientes.value = await resPacientes.json()
+  if (resEspecialidades.ok) especialidades.value = await resEspecialidades.json()
+})
+
+const medicosParaNuevaCita = computed(() => {
+  if (!especialidadNuevaCita.value) return medicos.value
+  return medicos.value.filter(m =>
+    (m.especialidades ?? []).some(e => e.espeId === parseInt(especialidadNuevaCita.value))
+  )
 })
 
 const citasFiltradas = computed(() => {
@@ -110,14 +121,14 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         <input v-model="busqueda" type="text" class="input-busqueda" placeholder="🔍 Buscar paciente, médico o motivo..." />
         <select v-model="filtroEstado" class="select-filtro">
           <option value="todos">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="en-espera">En espera</option>
+          <option value="agendada">Agendada</option>
+          <option value="confirmada">Confirmada</option>
           <option value="completada">Completada</option>
           <option value="cancelada">Cancelada</option>
         </select>
         <select v-model="filtroMedico" class="select-filtro">
           <option value="todos">Todos los médicos</option>
-          <option v-for="m in medicos" :key="m" :value="m">{{ m }}</option>
+          <option v-for="m in medicos" :key="m.medId" :value="m.medId">{{ m.medNombre }} {{ m.medApePat }}</option>
         </select>
       </div>
 
@@ -165,10 +176,17 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
             </select>
           </div>
           <div class="campo-modal">
+            <label>Especialidad</label>
+            <select v-model="especialidadNuevaCita" class="input-modal">
+              <option value="">Todas las especialidades</option>
+              <option v-for="e in especialidades" :key="e.espeId" :value="e.espeId">{{ e.espeNombre }}</option>
+            </select>
+          </div>
+          <div class="campo-modal">
             <label>Médico *</label>
             <select v-model="nuevaCita.medId" class="input-modal">
               <option value="">Seleccionar médico</option>
-              <option v-for="m in medicos" :key="m.medId" :value="m.medId">{{ m.medNombre }} {{ m.medApePat }}</option>
+              <option v-for="m in medicosParaNuevaCita" :key="m.medId" :value="m.medId">{{ m.medNombre }} {{ m.medApePat }}</option>
             </select>
           </div>
           <div class="campo-modal">

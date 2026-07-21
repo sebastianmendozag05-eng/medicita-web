@@ -1,6 +1,6 @@
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 
 const BASE_URL = 'http://localhost:8000/api/v1'
 
@@ -12,10 +12,12 @@ const mostrarModal = ref(false)
 const guardando = ref(false)
 
 const nuevoMedicoId = ref('')
-const nuevaEspecialidad = ref('Consulta General')
+const nuevaEspecialidadId = ref('')
+const nuevoMotivo = ref('')
 const nuevaFecha = ref('')
 const nuevaHora = ref('')
 const medicos = ref([])
+const especialidades = ref([])
 
 const getToken = () => localStorage.getItem('token')
 
@@ -44,13 +46,34 @@ const cargarMedicos = async () => {
     const res = await fetch(`${BASE_URL}/medicos`, { headers: headers() })
     if (!res.ok) return
     const data = await res.json()
-    medicos.value = Array.isArray(data) ? data : (data.data ?? [])
+    medicos.value = (Array.isArray(data) ? data : (data.data ?? [])).filter(m => m.medEstatus === 1)
   } catch { /* silencioso */ }
 }
+
+const cargarEspecialidades = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/especialidades`)
+    if (res.ok) especialidades.value = await res.json()
+  } catch { /* silencioso */ }
+}
+
+const medicosFiltrados = computed(() => {
+  if (!nuevaEspecialidadId.value) return medicos.value
+  return medicos.value.filter(m =>
+    (m.especialidades ?? []).some(e => e.espeId === parseInt(nuevaEspecialidadId.value))
+  )
+})
+
+watch(nuevaEspecialidadId, () => {
+  if (!medicosFiltrados.value.some(m => m.medId === parseInt(nuevoMedicoId.value))) {
+    nuevoMedicoId.value = ''
+  }
+})
 
 onMounted(() => {
   cargarCitas()
   cargarMedicos()
+  cargarEspecialidades()
 })
 
 const abrirFormulario = () => { mostrarModal.value = true }
@@ -58,13 +81,14 @@ const abrirFormulario = () => { mostrarModal.value = true }
 const cerrarFormulario = () => {
   mostrarModal.value = false
   nuevoMedicoId.value = ''
-  nuevaEspecialidad.value = 'Consulta General'
+  nuevaEspecialidadId.value = ''
+  nuevoMotivo.value = ''
   nuevaFecha.value = ''
   nuevaHora.value = ''
 }
 
 const guardarCita = async () => {
-  if (!nuevoMedicoId.value || !nuevaFecha.value || !nuevaHora.value) {
+  if (!nuevoMedicoId.value || !nuevaFecha.value || !nuevaHora.value || !nuevoMotivo.value.trim()) {
     alert('Por favor, llena todos los campos.')
     return
   }
@@ -85,7 +109,7 @@ const guardarCita = async () => {
         pacId: pacId,
         citFecha: nuevaFecha.value,
         citHora: nuevaHora.value + ':00',
-        citMotivo: nuevaEspecialidad.value
+        citMotivo: nuevoMotivo.value.trim()
       })
     })
 
@@ -205,23 +229,29 @@ const formatearHora = (horaStr) => {
         <div class="formulario-cuerpo">
 
           <div class="campo-grupo">
-            <label class="campo-etiqueta">Médico</label>
-            <select v-model="nuevoMedicoId" class="campo-select">
-              <option value="" disabled>Selecciona un médico</option>
-              <option v-for="med in medicos" :key="med.medId" :value="med.medId">
-                {{ med.medNombre }} {{ med.medApePat }}
-              </option>
+            <label class="campo-etiqueta">Especialidad</label>
+            <select v-model="nuevaEspecialidadId" class="campo-select">
+              <option value="">Todas las especialidades</option>
+              <option v-for="e in especialidades" :key="e.espeId" :value="e.espeId">{{ e.espeNombre }}</option>
             </select>
           </div>
 
           <div class="campo-grupo">
-            <label class="campo-etiqueta">Motivo</label>
-            <select v-model="nuevaEspecialidad" class="campo-select">
-              <option value="Consulta General">Consulta General</option>
-              <option value="Cardiología">Cardiología</option>
-              <option value="Dermatología">Dermatología</option>
-              <option value="Pediatría">Pediatría</option>
+            <label class="campo-etiqueta">Médico</label>
+            <select v-model="nuevoMedicoId" class="campo-select">
+              <option value="" disabled>Selecciona un médico</option>
+              <option v-for="med in medicosFiltrados" :key="med.medId" :value="med.medId">
+                {{ med.medNombre }} {{ med.medApePat }}
+              </option>
             </select>
+            <p v-if="nuevaEspecialidadId && medicosFiltrados.length === 0" class="texto-vacio-secundario">
+              No hay médicos disponibles para esta especialidad.
+            </p>
+          </div>
+
+          <div class="campo-grupo">
+            <label class="campo-etiqueta">Motivo de la consulta</label>
+            <input v-model="nuevoMotivo" type="text" class="campo-input" placeholder="Ej. Dolor de cabeza persistente" />
           </div>
 
           <div class="campo-fila-doble">
