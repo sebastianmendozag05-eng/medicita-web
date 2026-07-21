@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -17,6 +17,9 @@ const citas = ref([])
 const nuevaCita = ref({ pacId: '', medId: '', fecha: '', hora: '', motivo: '' })
 const especialidades = ref([])
 const especialidadNuevaCita = ref('')
+const horasDisponibles = ref([])
+const cargandoHoras = ref(false)
+const avisoDisponibilidad = ref('')
 
 onMounted(async () => {
   const [resCitas, resMedicos, resPacientes, resEspecialidades] = await Promise.all([
@@ -58,6 +61,33 @@ const cambiarEstado = async (cita, estado) => {
   if (res.ok) cita.citEstatus = estado
 }
 
+const cargarDisponibilidad = async () => {
+  horasDisponibles.value = []
+  avisoDisponibilidad.value = ''
+  nuevaCita.value.hora = ''
+  if (!nuevaCita.value.medId || !nuevaCita.value.fecha) return
+
+  cargandoHoras.value = true
+  try {
+    const res = await fetch(`${BASE_URL}/agenda/medico/${nuevaCita.value.medId}/disponibilidad?fecha=${nuevaCita.value.fecha}`, { headers: getHeaders() })
+    const data = await res.json()
+    if (!res.ok || !data.disponible) {
+      avisoDisponibilidad.value = data.motivo ?? 'El médico no tiene disponibilidad ese día.'
+      return
+    }
+    horasDisponibles.value = data.horas_disponibles ?? []
+    if (horasDisponibles.value.length === 0) {
+      avisoDisponibilidad.value = 'No quedan horarios disponibles ese día.'
+    }
+  } catch {
+    avisoDisponibilidad.value = 'No se pudo verificar la disponibilidad.'
+  } finally {
+    cargandoHoras.value = false
+  }
+}
+
+watch(() => [nuevaCita.value.medId, nuevaCita.value.fecha], cargarDisponibilidad)
+
 const guardarNuevaCita = async () => {
   if (!nuevaCita.value.pacId || !nuevaCita.value.medId || !nuevaCita.value.fecha || !nuevaCita.value.hora) return
   const res = await fetch(`${BASE_URL}/citas`, {
@@ -75,12 +105,16 @@ const guardarNuevaCita = async () => {
     citas.value.push(nueva)
     mostrarModalNueva.value = false
     nuevaCita.value = { pacId: '', medId: '', fecha: '', hora: '', motivo: '' }
+    horasDisponibles.value = []
+    avisoDisponibilidad.value = ''
   }
 }
 
 const cancelarModal = () => {
   nuevaCita.value = { pacId: '', medId: '', fecha: '', hora: '', motivo: '' }
   mostrarModalNueva.value = false
+  horasDisponibles.value = []
+  avisoDisponibilidad.value = ''
 }
 
 const formatearFecha = (f) => {
@@ -195,7 +229,13 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
           </div>
           <div class="campo-modal">
             <label>Hora *</label>
-            <input v-model="nuevaCita.hora" type="time" class="input-modal" />
+            <select v-model="nuevaCita.hora" class="input-modal" :disabled="!nuevaCita.medId || !nuevaCita.fecha || cargandoHoras">
+              <option value="">{{ cargandoHoras ? 'Consultando horarios...' : 'Seleccionar hora' }}</option>
+              <option v-for="h in horasDisponibles" :key="h" :value="h">{{ h }}</option>
+            </select>
+          </div>
+          <div class="campo-modal campo-ancho" v-if="avisoDisponibilidad">
+            <p class="aviso-disponibilidad">⚠️ {{ avisoDisponibilidad }}</p>
           </div>
           <div class="campo-modal campo-ancho">
             <label>Motivo de consulta</label>
@@ -326,6 +366,7 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 }
 .input-modal:focus { border-color: #0d8a72; background: white; }
 .botones-modal { display: flex; justify-content: flex-end; gap: 10px; }
+.aviso-disponibilidad { color: #b45309; font-size: 13px; margin: 0; }
 .btn-modal-cancelar {
   padding: 9px 18px; border: 1px solid #e2e8f0; border-radius: 8px;
   background: #f1f5f9; color: #64748b; font-weight: 600; font-size: 14px; cursor: pointer;

@@ -92,6 +92,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/agenda/medico/{medId}', [AgendaController::class, 'porMedico']);
         Route::get('/agenda/medico/{medId}/semana', [AgendaController::class, 'semana']);
+        Route::get('/agenda/medico/{medId}/disponibilidad', [AgendaController::class, 'disponibilidad']);
         Route::get('/agenda/todos', [AgendaController::class, 'todosMedicos']);
 
         Route::get('/reportes/resumen', [ReporteController::class, 'resumen']);

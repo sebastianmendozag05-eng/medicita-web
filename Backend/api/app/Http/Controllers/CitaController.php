@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cita;
 use App\Models\Notificacion;
+use App\Http\Controllers\Concerns\ValidaDisponibilidadMedico;
 use Illuminate\Http\Request;
 use App\Mail\CitaConfirmada;
 use App\Mail\CitaCancelada;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Mail;
 
 class CitaController extends Controller
 {
+    use ValidaDisponibilidadMedico;
+
     /**
      * Verifica que el usuario autenticado tenga permiso sobre esta cita.
      * Paciente: solo sus propias citas. Médico: solo las suyas.
@@ -58,6 +61,8 @@ class CitaController extends Controller
         if ($user->rol === 'paciente' && (int) $request->pacId !== (int) $user->paciente?->pacId) {
             abort(403, 'No puedes agendar citas a nombre de otro paciente.');
         }
+
+        $this->validarDisponibilidad((int) $request->medId, $request->citFecha, $request->citHora);
 
         $cita = Cita::create([
             'medId'      => $request->medId,

@@ -18,6 +18,9 @@ const nuevaFecha = ref('')
 const nuevaHora = ref('')
 const medicos = ref([])
 const especialidades = ref([])
+const horasDisponibles = ref([])
+const cargandoHoras = ref(false)
+const avisoDisponibilidad = ref('')
 
 const getToken = () => localStorage.getItem('token')
 
@@ -70,6 +73,33 @@ watch(nuevaEspecialidadId, () => {
   }
 })
 
+const cargarDisponibilidad = async () => {
+  horasDisponibles.value = []
+  avisoDisponibilidad.value = ''
+  nuevaHora.value = ''
+  if (!nuevoMedicoId.value || !nuevaFecha.value) return
+
+  cargandoHoras.value = true
+  try {
+    const res = await fetch(`${BASE_URL}/agenda/medico/${nuevoMedicoId.value}/disponibilidad?fecha=${nuevaFecha.value}`, { headers: headers() })
+    const data = await res.json()
+    if (!res.ok || !data.disponible) {
+      avisoDisponibilidad.value = data.motivo ?? 'El médico no tiene disponibilidad ese día.'
+      return
+    }
+    horasDisponibles.value = data.horas_disponibles ?? []
+    if (horasDisponibles.value.length === 0) {
+      avisoDisponibilidad.value = 'No quedan horarios disponibles ese día.'
+    }
+  } catch {
+    avisoDisponibilidad.value = 'No se pudo verificar la disponibilidad.'
+  } finally {
+    cargandoHoras.value = false
+  }
+}
+
+watch([nuevoMedicoId, nuevaFecha], cargarDisponibilidad)
+
 onMounted(() => {
   cargarCitas()
   cargarMedicos()
@@ -85,6 +115,8 @@ const cerrarFormulario = () => {
   nuevoMotivo.value = ''
   nuevaFecha.value = ''
   nuevaHora.value = ''
+  horasDisponibles.value = []
+  avisoDisponibilidad.value = ''
 }
 
 const guardarCita = async () => {
@@ -261,9 +293,17 @@ const formatearHora = (horaStr) => {
             </div>
             <div class="campo-grupo">
               <label class="campo-etiqueta">Hora</label>
-              <input v-model="nuevaHora" type="time" class="campo-input" />
+              <select v-model="nuevaHora" class="campo-select" :disabled="!nuevoMedicoId || !nuevaFecha || cargandoHoras">
+                <option value="" disabled>
+                  {{ cargandoHoras ? 'Consultando horarios...' : 'Selecciona un horario' }}
+                </option>
+                <option v-for="h in horasDisponibles" :key="h" :value="h">{{ h }}</option>
+              </select>
             </div>
           </div>
+          <p v-if="avisoDisponibilidad" class="texto-vacio-secundario aviso-disponibilidad">
+            ⚠️ {{ avisoDisponibilidad }}
+          </p>
         </div>
 
         <div class="modal-botones">
@@ -313,6 +353,7 @@ const formatearHora = (horaStr) => {
 .campo-input, .campo-select { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; color: #334155; background-color: #f8fafc; outline: none; }
 .campo-input:focus, .campo-select:focus { border-color: #115e59; background-color: #ffffff; }
 .campo-fila-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.aviso-disponibilidad { color: #b45309; margin-top: -6px; }
 .modal-botones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .btn-modal-cerrar { background: none; border: none; color: #64748b; font-size: 13px; font-weight: 500; padding: 8px 16px; cursor: pointer; border-radius: 8px; }
 .btn-modal-cerrar:hover { background-color: #f1f5f9; }
