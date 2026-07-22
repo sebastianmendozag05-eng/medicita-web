@@ -24,6 +24,11 @@ class LoginController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json(['user' => $user, 'token' => $token]);
+        $userData = $user->toArray();
+        $userData['pacId'] = $user->paciente?->pacId;
+        $userData['medId'] = $user->medico?->medId;
+        $userData['astId'] = $user->asistenteMedico?->astId;
+
+        return response()->json(['user' => $userData, 'token' => $token]);
     }
 }

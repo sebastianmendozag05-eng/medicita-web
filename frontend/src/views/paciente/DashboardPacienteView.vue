@@ -124,10 +124,11 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const nombreUsuario = ref('Paciente')
 const route = useRoute()
+const router = useRouter()
 const vistaActiva = ref('inicio')
 
 // 1. LOS CONTADORES INICIAN EN 0 PARA USUARIOS NUEVOS
@@ -174,7 +175,8 @@ onMounted(async () => {
 })
 
 const cerrarSesion = () => {
-  localStorage.removeItem('usuarioNombre')
+  localStorage.clear()
+  router.push('/login')
 }
 </script>
 

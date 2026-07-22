@@ -4,13 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Cita;
 use App\Models\Medico;
+use App\Http\Controllers\Concerns\AutorizaAccesoMedico;
 use Illuminate\Http\Request;
 
 class ReporteController extends Controller
 {
-    // Citas por período
+    use AutorizaAccesoMedico;
+
+    // Citas por período (reporte general: solo staff)
     public function porPeriodo(Request $request)
     {
+        $this->verificarSoloStaff($request);
+
         $request->validate([
             'inicio' => 'required|date',
             'fin'    => 'required|date',
@@ -27,9 +32,11 @@ class ReporteController extends Controller
         ]);
     }
 
-    // Citas por médico
+    // Citas por médico (el propio médico o staff)
     public function porMedico(Request $request, $medId)
     {
+        $this->verificarAccesoMedico($request, (int) $medId);
+
         $citas = Cita::with('paciente')
             ->where('medId', $medId)
             ->orderBy('citFecha', 'desc')
@@ -47,9 +54,11 @@ class ReporteController extends Controller
         ]);
     }
 
-    // Resumen general
-    public function resumen()
+    // Resumen general (solo staff)
+    public function resumen(Request $request)
     {
+        $this->verificarSoloStaff($request);
+
         $total       = Cita::count();
         $completadas = Cita::where('citEstatus', 'completada')->count();
         $canceladas  = Cita::where('citEstatus', 'cancelada')->count();

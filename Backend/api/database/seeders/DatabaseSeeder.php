@@ -15,7 +15,7 @@ class DatabaseSeeder extends Seeder
             'name'       => 'Sebastian Admin',
             'email'      => 'admin@medicita.com',
             'password'   => Hash::make('12345678'),
-            'rol'        => 'admin',
+            'rol'        => 'administrador',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

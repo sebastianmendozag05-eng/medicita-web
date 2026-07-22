@@ -109,6 +109,9 @@ const iniciarSesion = async () => {
     localStorage.setItem('usuarioNombre', data.user.name ?? '')
     localStorage.setItem('usuarioCorreo', data.user.email ?? '')
     localStorage.setItem('usuarioRol', data.user.rol ?? 'paciente')
+    if (data.user.pacId) localStorage.setItem('pacId', data.user.pacId)
+    if (data.user.medId) localStorage.setItem('medicoId', data.user.medId)
+    if (data.user.astId) localStorage.setItem('astId', data.user.astId)
  
     // ── Redirigir según el rol devuelto por el backend ──
     if (data.user.rol === 'medico') {

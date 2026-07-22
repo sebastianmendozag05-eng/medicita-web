@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\AusenciaMedico;
+use App\Http\Controllers\Concerns\AutorizaAccesoMedico;
 use Illuminate\Http\Request;
 
 class AusenciaMedicoController extends Controller
 {
-    public function index($medId)
+    use AutorizaAccesoMedico;
+
+    public function index(Request $request, $medId)
     {
+        $this->verificarAccesoMedico($request, (int) $medId);
         $ausencias = AusenciaMedico::where('medId', $medId)->get();
         return response()->json($ausencias);
     }
@@ -21,6 +25,8 @@ class AusenciaMedicoController extends Controller
             'ausFecha' => 'required|date',
         ]);
 
+        $this->verificarAccesoMedico($request, (int) $request->medId);
+
         $ausencia = AusenciaMedico::create($request->only([
             'medId', 'ausTipo', 'ausFecha', 'ausMotivo'
         ]));
@@ -28,9 +34,11 @@ class AusenciaMedicoController extends Controller
         return response()->json($ausencia, 201);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        AusenciaMedico::findOrFail($id)->delete();
+        $ausencia = AusenciaMedico::findOrFail($id);
+        $this->verificarAccesoMedico($request, (int) $ausencia->medId);
+        $ausencia->delete();
         return response()->json(['message' => 'Ausencia eliminada']);
     }
 }
