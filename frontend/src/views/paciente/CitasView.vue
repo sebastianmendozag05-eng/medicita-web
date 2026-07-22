@@ -1,6 +1,6 @@
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 
 const BASE_URL = 'http://localhost:8000/api/v1'
 
@@ -12,10 +12,15 @@ const mostrarModal = ref(false)
 const guardando = ref(false)
 
 const nuevoMedicoId = ref('')
-const nuevaEspecialidad = ref('Consulta General')
+const nuevaEspecialidadId = ref('')
+const nuevoMotivo = ref('')
 const nuevaFecha = ref('')
 const nuevaHora = ref('')
 const medicos = ref([])
+const especialidades = ref([])
+const horasDisponibles = ref([])
+const cargandoHoras = ref(false)
+const avisoDisponibilidad = ref('')
 
 const getToken = () => localStorage.getItem('token')
 
@@ -44,13 +49,61 @@ const cargarMedicos = async () => {
     const res = await fetch(`${BASE_URL}/medicos`, { headers: headers() })
     if (!res.ok) return
     const data = await res.json()
-    medicos.value = Array.isArray(data) ? data : (data.data ?? [])
+    medicos.value = (Array.isArray(data) ? data : (data.data ?? [])).filter(m => m.medEstatus === 1)
   } catch { /* silencioso */ }
 }
+
+const cargarEspecialidades = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/especialidades`)
+    if (res.ok) especialidades.value = await res.json()
+  } catch { /* silencioso */ }
+}
+
+const medicosFiltrados = computed(() => {
+  if (!nuevaEspecialidadId.value) return medicos.value
+  return medicos.value.filter(m =>
+    (m.especialidades ?? []).some(e => e.espeId === parseInt(nuevaEspecialidadId.value))
+  )
+})
+
+watch(nuevaEspecialidadId, () => {
+  if (!medicosFiltrados.value.some(m => m.medId === parseInt(nuevoMedicoId.value))) {
+    nuevoMedicoId.value = ''
+  }
+})
+
+const cargarDisponibilidad = async () => {
+  horasDisponibles.value = []
+  avisoDisponibilidad.value = ''
+  nuevaHora.value = ''
+  if (!nuevoMedicoId.value || !nuevaFecha.value) return
+
+  cargandoHoras.value = true
+  try {
+    const res = await fetch(`${BASE_URL}/agenda/medico/${nuevoMedicoId.value}/disponibilidad?fecha=${nuevaFecha.value}`, { headers: headers() })
+    const data = await res.json()
+    if (!res.ok || !data.disponible) {
+      avisoDisponibilidad.value = data.motivo ?? 'El médico no tiene disponibilidad ese día.'
+      return
+    }
+    horasDisponibles.value = data.horas_disponibles ?? []
+    if (horasDisponibles.value.length === 0) {
+      avisoDisponibilidad.value = 'No quedan horarios disponibles ese día.'
+    }
+  } catch {
+    avisoDisponibilidad.value = 'No se pudo verificar la disponibilidad.'
+  } finally {
+    cargandoHoras.value = false
+  }
+}
+
+watch([nuevoMedicoId, nuevaFecha], cargarDisponibilidad)
 
 onMounted(() => {
   cargarCitas()
   cargarMedicos()
+  cargarEspecialidades()
 })
 
 const abrirFormulario = () => { mostrarModal.value = true }
@@ -58,20 +111,28 @@ const abrirFormulario = () => { mostrarModal.value = true }
 const cerrarFormulario = () => {
   mostrarModal.value = false
   nuevoMedicoId.value = ''
-  nuevaEspecialidad.value = 'Consulta General'
+  nuevaEspecialidadId.value = ''
+  nuevoMotivo.value = ''
   nuevaFecha.value = ''
   nuevaHora.value = ''
+  horasDisponibles.value = []
+  avisoDisponibilidad.value = ''
 }
 
 const guardarCita = async () => {
-  if (!nuevoMedicoId.value || !nuevaFecha.value || !nuevaHora.value) {
+  if (!nuevoMedicoId.value || !nuevaFecha.value || !nuevaHora.value || !nuevoMotivo.value.trim()) {
     alert('Por favor, llena todos los campos.')
     return
   }
 
   guardando.value = true
   try {
-    const pacId = parseInt(localStorage.getItem('pacId') ?? '1')
+    const pacIdRaw = localStorage.getItem('pacId')
+    if (!pacIdRaw) {
+      alert('Tu cuenta no está vinculada a un expediente de paciente. Contacta al administrador.')
+      return
+    }
+    const pacId = parseInt(pacIdRaw)
     const res = await fetch(`${BASE_URL}/citas`, {
       method: 'POST',
       headers: headers(),
@@ -80,7 +141,7 @@ const guardarCita = async () => {
         pacId: pacId,
         citFecha: nuevaFecha.value,
         citHora: nuevaHora.value + ':00',
-        citMotivo: nuevaEspecialidad.value
+        citMotivo: nuevoMotivo.value.trim()
       })
     })
 
@@ -200,23 +261,29 @@ const formatearHora = (horaStr) => {
         <div class="formulario-cuerpo">
 
           <div class="campo-grupo">
-            <label class="campo-etiqueta">Médico</label>
-            <select v-model="nuevoMedicoId" class="campo-select">
-              <option value="" disabled>Selecciona un médico</option>
-              <option v-for="med in medicos" :key="med.medId" :value="med.medId">
-                {{ med.medNombre }} {{ med.medApePat }}
-              </option>
+            <label class="campo-etiqueta">Especialidad</label>
+            <select v-model="nuevaEspecialidadId" class="campo-select">
+              <option value="">Todas las especialidades</option>
+              <option v-for="e in especialidades" :key="e.espeId" :value="e.espeId">{{ e.espeNombre }}</option>
             </select>
           </div>
 
           <div class="campo-grupo">
-            <label class="campo-etiqueta">Motivo</label>
-            <select v-model="nuevaEspecialidad" class="campo-select">
-              <option value="Consulta General">Consulta General</option>
-              <option value="Cardiología">Cardiología</option>
-              <option value="Dermatología">Dermatología</option>
-              <option value="Pediatría">Pediatría</option>
+            <label class="campo-etiqueta">Médico</label>
+            <select v-model="nuevoMedicoId" class="campo-select">
+              <option value="" disabled>Selecciona un médico</option>
+              <option v-for="med in medicosFiltrados" :key="med.medId" :value="med.medId">
+                {{ med.medNombre }} {{ med.medApePat }}
+              </option>
             </select>
+            <p v-if="nuevaEspecialidadId && medicosFiltrados.length === 0" class="texto-vacio-secundario">
+              No hay médicos disponibles para esta especialidad.
+            </p>
+          </div>
+
+          <div class="campo-grupo">
+            <label class="campo-etiqueta">Motivo de la consulta</label>
+            <input v-model="nuevoMotivo" type="text" class="campo-input" placeholder="Ej. Dolor de cabeza persistente" />
           </div>
 
           <div class="campo-fila-doble">
@@ -226,9 +293,17 @@ const formatearHora = (horaStr) => {
             </div>
             <div class="campo-grupo">
               <label class="campo-etiqueta">Hora</label>
-              <input v-model="nuevaHora" type="time" class="campo-input" />
+              <select v-model="nuevaHora" class="campo-select" :disabled="!nuevoMedicoId || !nuevaFecha || cargandoHoras">
+                <option value="" disabled>
+                  {{ cargandoHoras ? 'Consultando horarios...' : 'Selecciona un horario' }}
+                </option>
+                <option v-for="h in horasDisponibles" :key="h" :value="h">{{ h }}</option>
+              </select>
             </div>
           </div>
+          <p v-if="avisoDisponibilidad" class="texto-vacio-secundario aviso-disponibilidad">
+            ⚠️ {{ avisoDisponibilidad }}
+          </p>
         </div>
 
         <div class="modal-botones">
@@ -278,6 +353,7 @@ const formatearHora = (horaStr) => {
 .campo-input, .campo-select { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; color: #334155; background-color: #f8fafc; outline: none; }
 .campo-input:focus, .campo-select:focus { border-color: #115e59; background-color: #ffffff; }
 .campo-fila-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.aviso-disponibilidad { color: #b45309; margin-top: -6px; }
 .modal-botones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 .btn-modal-cerrar { background: none; border: none; color: #64748b; font-size: 13px; font-weight: 500; padding: 8px 16px; cursor: pointer; border-radius: 8px; }
 .btn-modal-cerrar:hover { background-color: #f1f5f9; }

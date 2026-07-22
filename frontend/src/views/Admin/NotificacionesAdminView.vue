@@ -47,19 +47,48 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
 const tabActiva = ref('todas')
 
-const notificaciones = ref([
-  { id: 1, tipo: 'cita',     icon: '📅', color: '#0d8a72', titulo: 'Nueva cita registrada',              descripcion: 'El paciente Pedro Ruiz agendó una cita para el 28 de junio a las 10:00.',       tiempo: 'Hace 5 min',   leida: false },
-  { id: 2, tipo: 'alerta',   icon: '⚠️', color: '#f59e0b', titulo: 'Cita cancelada',                    descripcion: 'El Dr. Gómez canceló la cita de las 14:00 del día de hoy.',                   tiempo: 'Hace 18 min',  leida: false },
-  { id: 3, tipo: 'sistema',  icon: '🔧', color: '#6366f1', titulo: 'Mantenimiento programado',          descripcion: 'El sistema estará en mantenimiento el domingo 30 de junio de 2:00 a 4:00 AM.', tiempo: 'Hace 1 hora',  leida: false },
-  { id: 4, tipo: 'usuario',  icon: '👤', color: '#3b82f6', titulo: 'Nuevo médico registrado',           descripcion: 'El Dr. Vargas completó su registro. Pendiente de validación.',                  tiempo: 'Hace 3 horas', leida: true  },
-  { id: 5, tipo: 'cita',     icon: '📅', color: '#0d8a72', titulo: 'Cita completada',                   descripcion: 'La cita de Ana Martínez con la Dra. Ramírez fue marcada como completada.',     tiempo: 'Ayer, 16:45',  leida: true  },
-  { id: 6, tipo: 'alerta',   icon: '⚠️', color: '#f59e0b', titulo: 'Paciente sin asistir',             descripcion: 'Luis Hernández no se presentó a su cita de las 10:30.',                        tiempo: 'Ayer, 11:00',  leida: true  },
-  { id: 7, tipo: 'sistema',  icon: '✅', color: '#22c55e', titulo: 'Reporte generado exitosamente',    descripcion: 'El reporte mensual de mayo fue generado y está disponible para descarga.',       tiempo: 'Hace 2 días',  leida: true  },
-])
+const notificaciones = ref([])
+
+const iconos = { cita: '📅', alerta: '⚠️', sistema: '🔧', usuario: '👤' }
+const colores = { cita: '#0d8a72', alerta: '#f59e0b', sistema: '#6366f1', usuario: '#3b82f6' }
+
+const formatearTiempo = (fecha) => {
+  const diffMs = Date.now() - new Date(fecha).getTime()
+  const min = Math.floor(diffMs / 60000)
+  if (min < 1) return 'Ahora mismo'
+  if (min < 60) return `Hace ${min} min`
+  const horas = Math.floor(min / 60)
+  if (horas < 24) return `Hace ${horas} hora${horas > 1 ? 's' : ''}`
+  const dias = Math.floor(horas / 24)
+  return `Hace ${dias} día${dias > 1 ? 's' : ''}`
+}
+
+const cargarNotificaciones = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/notificaciones`, { headers: getHeaders() })
+    if (!res.ok) return
+    const data = await res.json()
+    notificaciones.value = data.map(n => ({
+      id: n.notifId,
+      tipo: n.tipo,
+      icon: iconos[n.tipo] || '🔔',
+      color: colores[n.tipo] || '#64748b',
+      titulo: n.titulo,
+      descripcion: n.descripcion,
+      tiempo: formatearTiempo(n.created_at),
+      leida: n.leida
+    }))
+  } catch { /* silencioso */ }
+}
+
+onMounted(cargarNotificaciones)
 
 const tabs = computed(() => [
   { key: 'todas',   label: 'Todas',    count: notificaciones.value.filter(n => !n.leida).length },
@@ -74,13 +103,20 @@ const notificacionesFiltradas = computed(() => {
   return notificaciones.value.filter(n => n.tipo === tabActiva.value)
 })
 
-const marcarLeida = (id) => {
+const marcarLeida = async (id) => {
   const n = notificaciones.value.find(n => n.id === id)
-  if (n) n.leida = true
+  if (!n || n.leida) return
+  n.leida = true
+  try {
+    await fetch(`${BASE_URL}/notificaciones/${id}/leer`, { method: 'PUT', headers: getHeaders() })
+  } catch { /* silencioso */ }
 }
 
-const marcarTodasLeidas = () => {
+const marcarTodasLeidas = async () => {
   notificaciones.value.forEach(n => n.leida = true)
+  try {
+    await fetch(`${BASE_URL}/notificaciones/leer-todas`, { method: 'PUT', headers: getHeaders() })
+  } catch { /* silencioso */ }
 }
 </script>
 

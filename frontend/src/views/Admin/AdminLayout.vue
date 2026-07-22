@@ -20,6 +20,10 @@
           <span class="nav-icon">👥</span>
           <span class="nav-label">Pacientes</span>
         </router-link>
+        <router-link to="/admin/recepcionistas" class="nav-item">
+          <span class="nav-icon">🧑‍💼</span>
+          <span class="nav-label">Recepcionistas</span>
+        </router-link>
         <router-link to="/admin/reportes" class="nav-item">
           <span class="nav-icon">📊</span>
           <span class="nav-label">Reportes</span>
@@ -59,19 +63,33 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const sidebarCollapsed = ref(false)
-const notifCount = ref(3)
+const notifCount = ref(0)
+
+const cargarNotifCount = async () => {
+  try {
+    const res = await fetch('http://localhost:8000/api/v1/notificaciones', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      notifCount.value = data.filter(n => !n.leida).length
+    }
+  } catch { /* silencioso */ }
+}
+
+onMounted(cargarNotifCount)
 
 const fechaHoy = computed(() => {
   return new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 })
 
 const cerrarSesion = () => {
-  localStorage.removeItem('token')
+  localStorage.clear()
   router.push('/login')
 }
 </script>

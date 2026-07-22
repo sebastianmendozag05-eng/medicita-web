@@ -11,28 +11,50 @@ const mensajeExito = ref('')
 const perfil = ref({
   nombre: '',
   especialidad: '',
+  espeId: null,
   cedula: '',
   telefono: '',
   email: '',
-  consultorio: '',
   horarioInicio: '08:00',
   horarioFin: '17:00',
-  descripcion: ''
+  diasLaborales: 'Lunes a Viernes'
 })
 
+const listaEspecialidades = ref([])
 const perfilOriginal = ref({})
 
-onMounted(() => {
-  const nombre = localStorage.getItem('usuarioNombre') || 'Médico'
-  const email = localStorage.getItem('usuarioEmail') || ''
-  const perfilGuardado = localStorage.getItem('perfilMedico')
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
-  if (perfilGuardado) {
-    perfil.value = JSON.parse(perfilGuardado)
-  } else {
-    perfil.value.nombre = nombre
-    perfil.value.email = email
-  }
+const cargarEspecialidades = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/especialidades`)
+    if (res.ok) listaEspecialidades.value = await res.json()
+  } catch { /* silencioso */ }
+}
+
+const cargarPerfil = async () => {
+  const medId = localStorage.getItem('medicoId')
+  if (!medId) return
+  try {
+    const res = await fetch(`${BASE_URL}/medicos/${medId}`, { headers: getHeaders() })
+    if (!res.ok) return
+    const m = await res.json()
+    perfil.value.nombre = `${m.medNombre ?? ''} ${m.medApePat ?? ''} ${m.medApeMat ?? ''}`.trim()
+    perfil.value.cedula = m.medCedula || ''
+    perfil.value.telefono = m.medTelefono || ''
+    perfil.value.email = m.medCorreo || ''
+    perfil.value.espeId = m.especialidades?.[0]?.espeId ?? null
+    perfil.value.especialidad = m.especialidades?.[0]?.espeNombre ?? ''
+    perfil.value.horarioInicio = m.turno?.turHoraEntrada?.substring(0, 5) || perfil.value.horarioInicio
+    perfil.value.horarioFin = m.turno?.turHoraSalida?.substring(0, 5) || perfil.value.horarioFin
+    perfil.value.diasLaborales = m.turno?.turDiasLaborales || perfil.value.diasLaborales
+  } catch { /* silencioso */ }
+}
+
+onMounted(() => {
+  cargarEspecialidades()
+  cargarPerfil()
 })
 
 const activarEdicion = () => {
@@ -45,16 +67,53 @@ const cancelarEdicion = () => {
   modoEdicion.value = false
 }
 
-const guardarPerfil = () => {
+const guardarPerfil = async () => {
+  const medId = localStorage.getItem('medicoId')
+  if (!medId) { mensajeExito.value = ''; alert('Tu cuenta no está vinculada a un médico.'); return }
+
   guardando.value = true
-  setTimeout(() => {
-    localStorage.setItem('perfilMedico', JSON.stringify(perfil.value))
-    localStorage.setItem('usuarioNombre', perfil.value.nombre)
+  const partes = perfil.value.nombre.trim().split(/\s+/)
+  const medApeMat = partes.length >= 3 ? partes.pop() : ''
+  const medApePat = partes.length >= 2 ? partes.pop() : ''
+  const medNombre = partes.join(' ')
+  try {
+    const res = await fetch(`${BASE_URL}/medicos/${medId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        medNombre: medNombre || '',
+        medApePat: medApePat || '',
+        medApeMat: medApeMat || null,
+        medCorreo: perfil.value.email,
+        medTelefono: perfil.value.telefono,
+        medCedula: perfil.value.cedula,
+        espeId: perfil.value.espeId
+      })
+    })
+    await fetch(`${BASE_URL}/turnos/${medId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        turHoraEntrada: perfil.value.horarioInicio,
+        turHoraSalida: perfil.value.horarioFin,
+        turDiasLaborales: perfil.value.diasLaborales
+      })
+    })
+    if (res.ok) {
+      localStorage.setItem('usuarioNombre', perfil.value.nombre)
+      perfil.value.especialidad = listaEspecialidades.value.find(e => e.espeId === perfil.value.espeId)?.espeNombre ?? ''
+      mensajeExito.value = 'Perfil actualizado correctamente'
+    } else {
+      mensajeExito.value = ''
+      alert('No se pudo guardar el perfil.')
+    }
+  } catch {
+    alert('Error de conexión al guardar el perfil.')
+  } finally {
     guardando.value = false
     modoEdicion.value = false
-    mensajeExito.value = 'Perfil actualizado correctamente'
     setTimeout(() => { mensajeExito.value = '' }, 3000)
-  }, 600)
+  }
 }
 
 const cerrarSesion = () => {
@@ -88,6 +147,9 @@ const inicialNombre = () => {
         </router-link>
         <router-link to="/medico/historiales" class="enlace-menu">
           <span class="icono">📂</span> Historial Médico
+        </router-link>
+        <router-link to="/medico/notificaciones" class="enlace-menu">
+          <span class="icono">🔔</span> Notificaciones
         </router-link>
       </nav>
 
@@ -155,13 +217,10 @@ const inicialNombre = () => {
 
             <div class="campo-grupo">
               <label class="etiqueta-campo">Especialidad</label>
-              <input
-                v-if="modoEdicion"
-                v-model="perfil.especialidad"
-                type="text"
-                class="input-campo"
-                placeholder="Ej. Cardiología"
-              />
+              <select v-if="modoEdicion" v-model="perfil.espeId" class="input-campo">
+                <option :value="null">Sin especialidad</option>
+                <option v-for="e in listaEspecialidades" :key="e.espeId" :value="e.espeId">{{ e.espeNombre }}</option>
+              </select>
               <p v-else class="valor-campo">{{ perfil.especialidad || '—' }}</p>
             </div>
 
@@ -202,18 +261,6 @@ const inicialNombre = () => {
             </div>
 
             <div class="campo-grupo">
-              <label class="etiqueta-campo">Consultorio / Área</label>
-              <input
-                v-if="modoEdicion"
-                v-model="perfil.consultorio"
-                type="text"
-                class="input-campo"
-                placeholder="Ej. Piso 3, Consultorio 12"
-              />
-              <p v-else class="valor-campo">{{ perfil.consultorio || '—' }}</p>
-            </div>
-
-            <div class="campo-grupo">
               <label class="etiqueta-campo">Horario inicio</label>
               <input
                 v-if="modoEdicion"
@@ -233,18 +280,6 @@ const inicialNombre = () => {
                 class="input-campo"
               />
               <p v-else class="valor-campo">{{ perfil.horarioFin || '—' }}</p>
-            </div>
-
-            <div class="campo-grupo campo-ancho-completo">
-              <label class="etiqueta-campo">Descripción / Notas profesionales</label>
-              <textarea
-                v-if="modoEdicion"
-                v-model="perfil.descripcion"
-                class="input-campo textarea-campo"
-                placeholder="Breve descripción profesional, especialidades adicionales, etc."
-                rows="3"
-              ></textarea>
-              <p v-else class="valor-campo">{{ perfil.descripcion || '—' }}</p>
             </div>
           </div>
 

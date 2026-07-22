@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\TurnoMedico;
+use App\Http\Controllers\Concerns\AutorizaAccesoMedico;
 use Illuminate\Http\Request;
 
 class TurnoMedicoController extends Controller
 {
+    use AutorizaAccesoMedico;
+
     public function store(Request $request)
     {
         $request->validate([
@@ -15,6 +18,8 @@ class TurnoMedicoController extends Controller
             'turHoraEntrada'   => 'required',
             'turHoraSalida'    => 'required',
         ]);
+
+        $this->verificarAccesoMedico($request, (int) $request->medId);
 
         $turno = TurnoMedico::create($request->only([
             'medId', 'turDiasLaborales', 'turHoraEntrada', 'turHoraSalida'
@@ -25,10 +30,16 @@ class TurnoMedicoController extends Controller
 
     public function update(Request $request, $medId)
     {
-        $turno = TurnoMedico::where('medId', $medId)->firstOrFail();
-        $turno->update($request->only([
-            'turDiasLaborales', 'turHoraEntrada', 'turHoraSalida'
-        ]));
+        $this->verificarAccesoMedico($request, (int) $medId);
+        $request->validate([
+            'turDiasLaborales' => 'sometimes|string',
+            'turHoraEntrada'   => 'sometimes',
+            'turHoraSalida'    => 'sometimes',
+        ]);
+        $turno = TurnoMedico::updateOrCreate(
+            ['medId' => $medId],
+            $request->only(['turDiasLaborales', 'turHoraEntrada', 'turHoraSalida'])
+        );
         return response()->json($turno);
     }
 }

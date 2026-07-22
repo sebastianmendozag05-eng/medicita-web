@@ -29,10 +29,12 @@
           />
         </div>
 
-        <button type="submit" :disabled="!correoValido" :class="{ 'btn-deshabilitado': !correoValido }">
-          Enviar enlace
+        <button type="submit" :disabled="!correoValido || enviando" :class="{ 'btn-deshabilitado': !correoValido }">
+          {{ enviando ? 'Enviando...' : 'Enviar enlace' }}
         </button>
       </form>
+
+      <p v-if="mensaje" class="subtitle" style="margin-top: 1rem;">{{ mensaje }}</p>
 
       <div class="login-redirect">
         <router-link to="/login">Volver a inicio de sesión</router-link>
@@ -45,7 +47,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 
+const BASE_URL = 'http://localhost:8000/api/v1'
 const correo = ref('')
+const enviando = ref(false)
+const mensaje = ref('')
 
 // Validar estructura básica del correo
 const correoValido = computed(() => {
@@ -53,10 +58,23 @@ const correoValido = computed(() => {
   return regex.test(correo.value)
 })
 
-const enviarEnlace = () => {
+const enviarEnlace = async () => {
   if (!correoValido.value) return
-  console.log('Solicitando enlace para:', correo.value)
-  alert(`Se ha solicitado un enlace para: ${correo.value}`)
+  enviando.value = true
+  mensaje.value = ''
+  try {
+    const res = await fetch(`${BASE_URL}/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: correo.value })
+    })
+    const data = await res.json()
+    mensaje.value = data.message || 'Si el correo existe, se envió un enlace de recuperación.'
+  } catch {
+    mensaje.value = 'No se pudo conectar con el servidor. Intenta de nuevo.'
+  } finally {
+    enviando.value = false
+  }
 }
 </script>
 

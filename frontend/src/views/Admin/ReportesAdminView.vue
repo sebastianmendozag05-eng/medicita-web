@@ -44,7 +44,7 @@
       <!-- Distribución por especialidad -->
       <div class="card">
         <h3>Citas por especialidad</h3>
-        <div class="esp-list">
+        <div class="esp-list" v-if="porEspecialidad.length > 0">
           <div class="esp-row" v-for="e in porEspecialidad" :key="e.nombre">
             <span class="esp-nombre">{{ e.nombre }}</span>
             <div class="esp-bar-wrap">
@@ -91,42 +91,89 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 
-const periodoSeleccionado = ref('mes')
+const BASE_URL = 'http://localhost:8000/api/v1'
 
-const resumen = ref([
-  { icon: '📅', label: 'Total de citas',       value: '312' },
-  { icon: '✅', label: 'Completadas',           value: '258' },
-  { icon: '❌', label: 'Canceladas',            value: '31'  },
-  { icon: '👥', label: 'Pacientes atendidos',   value: '194' },
-])
+const getHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${localStorage.getItem('token')}`
+})
 
-const citasPorDia = ref([
-  { dia: 'Lun', total: 28 },
-  { dia: 'Mar', total: 34 },
-  { dia: 'Mié', total: 22 },
-  { dia: 'Jue', total: 40 },
-  { dia: 'Vie', total: 36 },
-  { dia: 'Sáb', total: 18 },
-  { dia: 'Dom', total: 8  },
-])
+const periodoSeleccionado = ref('semana')
 
-const maxCitas = computed(() => Math.max(...citasPorDia.value.map(d => d.total)))
+const resumen = ref([])
+const citasPorDia = ref([])
+const maxCitas = ref(1)
+const porEspecialidad = ref([])
+const medicos = ref([])
 
-const porEspecialidad = ref([
-  { nombre: 'Medicina General', pct: 42 },
-  { nombre: 'Pediatría',        pct: 28 },
-  { nombre: 'Cardiología',      pct: 18 },
-  { nombre: 'Ginecología',      pct: 12 },
-])
+const nombresDias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
-const medicos = ref([
-  { nombre: 'Dr. López',    especialidad: 'Cardiología',      total: 98,  completadas: 82, canceladas: 8,  asistencia: 84 },
-  { nombre: 'Dra. Ramírez', especialidad: 'Pediatría',         total: 112, completadas: 97, canceladas: 9,  asistencia: 87 },
-  { nombre: 'Dr. Gómez',   especialidad: 'Medicina General', total: 76,  completadas: 55, canceladas: 14, asistencia: 72 },
-  { nombre: 'Dra. Vargas', especialidad: 'Ginecología',       total: 64,  completadas: 58, canceladas: 4,  asistencia: 91 },
-])
+const cargarReportes = async () => {
+  try {
+    const [resResumen, resMedicos, resCitas] = await Promise.all([
+      fetch(`${BASE_URL}/reportes/resumen`, { headers: getHeaders() }),
+      fetch(`${BASE_URL}/medicos`, { headers: getHeaders() }),
+      fetch(`${BASE_URL}/citas`, { headers: getHeaders() })
+    ])
+
+    if (resResumen.ok) {
+      const r = await resResumen.json()
+      resumen.value = [
+        { icon: '📅', label: 'Total de citas', value: r.total_citas ?? 0 },
+        { icon: '✅', label: 'Completadas', value: r.completadas ?? 0 },
+        { icon: '✕', label: 'Canceladas', value: r.canceladas ?? 0 },
+        { icon: '👨‍⚕️', label: 'Médicos activos', value: r.medicos_activos ?? 0 }
+      ]
+    }
+
+    const listaMedicos = resMedicos.ok ? await resMedicos.json() : []
+    const listaCitas = resCitas.ok ? await resCitas.json() : []
+    const citas = Array.isArray(listaCitas) ? listaCitas : (listaCitas.data ?? [])
+
+    // Citas por día (semana actual)
+    const conteoPorDia = [0, 0, 0, 0, 0, 0, 0]
+    citas.forEach(c => {
+      if (!c.citFecha) return
+      const dia = new Date(c.citFecha).getDay()
+      conteoPorDia[dia]++
+    })
+    citasPorDia.value = nombresDias.map((dia, i) => ({ dia, total: conteoPorDia[i] }))
+    maxCitas.value = Math.max(...conteoPorDia, 1)
+
+    // Distribución por motivo/especialidad
+    const conteoMotivo = {}
+    citas.forEach(c => {
+      const motivo = c.citMotivo || 'Otro'
+      conteoMotivo[motivo] = (conteoMotivo[motivo] ?? 0) + 1
+    })
+    const totalCitas = citas.length || 1
+    porEspecialidad.value = Object.entries(conteoMotivo).map(([nombre, total]) => ({
+      nombre,
+      pct: Math.round((total / totalCitas) * 100)
+    }))
+
+    // Rendimiento por médico
+    const detalles = await Promise.all(
+      listaMedicos.map(m => fetch(`${BASE_URL}/reportes/medico/${m.medId}`, { headers: getHeaders() }).then(r => r.json()))
+    )
+    medicos.value = detalles.map(d => ({
+      nombre: `Dr. ${d.medico?.medNombre ?? ''} ${d.medico?.medApePat ?? ''}`,
+      especialidad: '—',
+      total: d.total,
+      completadas: d.completadas,
+      canceladas: d.canceladas,
+      asistencia: d.total ? Math.round((d.completadas / d.total) * 100) : 0
+    }))
+  } catch (error) {
+    console.error('Error al cargar reportes:', error)
+  }
+}
+
+onMounted(() => {
+  cargarReportes()
+})
 </script>
 
 <style scoped>

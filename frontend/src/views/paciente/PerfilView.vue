@@ -156,22 +156,26 @@ const formatearFecha = (fechaRaw) => {
   return fechaRaw
 }
 
-// Cargar datos desde el LocalStorage
-const cargarDatosLocal = () => {
-  usuario.value.nombre = localStorage.getItem('usuarioNombre') || ''
-  usuario.value.apePat = localStorage.getItem('usuarioApePat') || ''
-  usuario.value.apeMat = localStorage.getItem('usuarioApeMat') || ''
-  usuario.value.correo = localStorage.getItem('usuarioCorreo') || ''
-  usuario.value.telefono = localStorage.getItem('usuarioTelefono') || ''
-  usuario.value.nss = localStorage.getItem('usuarioNss') || ''
-  usuario.value.sexo = localStorage.getItem('usuarioSexo') || ''
-  usuario.value.fechaNac = localStorage.getItem('usuarioFechaNac') || ''
-  usuario.value.peso = localStorage.getItem('usuarioPeso') || ''
-  usuario.value.estatura = localStorage.getItem('usuarioEstatura') || ''
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
+
+const cargarDatos = async () => {
+  const pacId = localStorage.getItem('pacId')
+  if (!pacId) return
+  try {
+    const res = await fetch(`${BASE_URL}/pacientes/${pacId}`, { headers: getHeaders() })
+    if (!res.ok) return
+    const p = await res.json()
+    usuario.value = {
+      nombre: p.pacNombre || '', apePat: p.pacApePat || '', apeMat: p.pacApeMat || '',
+      correo: p.pacCorreo || '', telefono: p.pacTelefono || '', nss: p.pacNSS || '',
+      sexo: p.pacSexo || '', fechaNac: p.pacFechaNac || '', peso: p.pacPeso || '', estatura: p.pacEstatura || ''
+    }
+  } catch { /* silencioso */ }
 }
 
 onMounted(() => {
-  cargarDatosLocal()
+  cargarDatos()
 })
 
 // Acciones del botón
@@ -185,24 +189,29 @@ const cancelarEdicion = () => {
   isEditing.value = false
 }
 
-const guardarCambios = () => {
-  // 1. Actualizamos el estado reactivo principal en la vista
-  usuario.value = { ...editForm.value }
+const guardarCambios = async () => {
+  const pacId = localStorage.getItem('pacId')
+  if (!pacId) { alert('Tu cuenta no está vinculada a un expediente de paciente.'); return }
 
-  // 2. Seteamos los nuevos valores directo en el LocalStorage
-  localStorage.setItem('usuarioNombre', usuario.value.nombre)
-  localStorage.setItem('usuarioApePat', usuario.value.apePat)
-  localStorage.setItem('usuarioApeMat', usuario.value.apeMat)
-  localStorage.setItem('usuarioTelefono', usuario.value.telefono)
-  localStorage.setItem('usuarioNss', usuario.value.nss)
-  localStorage.setItem('usuarioSexo', usuario.value.sexo)
-  localStorage.setItem('usuarioFechaNac', usuario.value.fechaNac)
-  localStorage.setItem('usuarioPeso', usuario.value.peso)
-  localStorage.setItem('usuarioEstatura', usuario.value.estatura)
+  try {
+    const res = await fetch(`${BASE_URL}/pacientes/${pacId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        pacNombre: editForm.value.nombre, pacApePat: editForm.value.apePat, pacApeMat: editForm.value.apeMat,
+        pacCorreo: editForm.value.correo, pacTelefono: editForm.value.telefono, pacNSS: editForm.value.nss,
+        pacSexo: editForm.value.sexo, pacFechaNac: editForm.value.fechaNac,
+        pacPeso: editForm.value.peso, pacEstatura: editForm.value.estatura
+      })
+    })
+    if (!res.ok) { alert('No se pudo guardar el perfil.'); return }
 
-  // 3. Salimos del modo edición
-  isEditing.value = false
-  alert('¡Perfil actualizado con éxito de forma local! 🚀')
+    usuario.value = { ...editForm.value }
+    isEditing.value = false
+    alert('¡Perfil actualizado con éxito!')
+  } catch {
+    alert('Error de conexión al guardar el perfil.')
+  }
 }
 </script>
 

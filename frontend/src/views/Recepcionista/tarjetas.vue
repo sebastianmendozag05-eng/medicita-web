@@ -3,47 +3,62 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
+
 const fechaActual = ref('')
 const busqueda = ref('')
+const citasDelDia = ref([])
 
-const citasDelDia = ref([
-  { id: 1, hora: '08:00', paciente: 'María González',  medico: 'Dr. Ramírez', motivo: 'Consulta general',       checkin: true,  horaCheckin: '07:52' },
-  { id: 2, hora: '08:30', paciente: 'Carlos Pérez',    medico: 'Dra. López',  motivo: 'Revisión de resultados', checkin: true,  horaCheckin: '08:25' },
-  { id: 3, hora: '09:00', paciente: 'Ana Martínez',    medico: 'Dr. Ramírez', motivo: 'Control de presión',     checkin: false, horaCheckin: null },
-  { id: 4, hora: '09:30', paciente: 'Luis Hernández',  medico: 'Dr. Torres',  motivo: 'Dolor de espalda',       checkin: false, horaCheckin: null },
-  { id: 5, hora: '10:00', paciente: 'Sofía Morales',   medico: 'Dra. López',  motivo: 'Chequeo anual',          checkin: false, horaCheckin: null },
-  { id: 6, hora: '10:30', paciente: 'Roberto Díaz',    medico: 'Dr. Torres',  motivo: 'Seguimiento tratamiento',checkin: false, horaCheckin: null },
-  { id: 7, hora: '11:00', paciente: 'Elena Castillo',  medico: 'Dra. Vega',   motivo: 'Migraña',                checkin: false, horaCheckin: null },
-  { id: 8, hora: '11:30', paciente: 'Jorge Navarro',   medico: 'Dr. Ramírez', motivo: 'Diabetes control',       checkin: false, horaCheckin: null },
-  { id: 9, hora: '12:00', paciente: 'Paula Ríos',      medico: 'Dra. Vega',   motivo: 'Consulta dermatología',  checkin: false, horaCheckin: null },
-])
+onMounted(async () => {
+  fechaActual.value = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const hoy = new Date().toISOString().split('T')[0]
+  const res = await fetch(`${BASE_URL}/agenda/todos?fecha=${hoy}`, { headers: getHeaders() })
+  if (res.ok) {
+    const medicos = await res.json()
+    citasDelDia.value = medicos.flatMap(m =>
+      (m.citas ?? []).map(c => ({
+        id: c.citId,
+        hora: c.citHora?.substring(0, 5),
+        paciente: `${c.paciente?.pacNombre ?? ''} ${c.paciente?.pacApePat ?? ''}`,
+        medico: `Dr. ${m.medNombre} ${m.medApePat}`,
+        motivo: c.citMotivo,
+        checkin: c.citEstatus === 'confirmada' || c.citEstatus === 'completada',
+        horaCheckin: null
+      }))
+    )
+  }
+})
 
 const totalCheckin = computed(() => citasDelDia.value.filter(c => c.checkin).length)
 const totalPendiente = computed(() => citasDelDia.value.filter(c => !c.checkin).length)
-const porcentaje = computed(() => Math.round((totalCheckin.value / citasDelDia.value.length) * 100))
+const porcentaje = computed(() => citasDelDia.value.length ? Math.round((totalCheckin.value / citasDelDia.value.length) * 100) : 0)
 
 const citasFiltradas = computed(() => {
   const q = busqueda.value.toLowerCase()
   if (!q) return citasDelDia.value
-  return citasDelDia.value.filter(c =>
-    c.paciente.toLowerCase().includes(q) || c.medico.toLowerCase().includes(q)
-  )
+  return citasDelDia.value.filter(c => c.paciente.toLowerCase().includes(q) || c.medico.toLowerCase().includes(q))
 })
 
-const registrarCheckin = (cita) => {
-  cita.checkin = true
-  const ahora = new Date()
-  cita.horaCheckin = `${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}`
+const registrarCheckin = async (cita) => {
+  const res = await fetch(`${BASE_URL}/citas/${cita.id}`, {
+    method: 'PUT', headers: getHeaders(),
+    body: JSON.stringify({ citEstatus: 'confirmada' })
+  })
+  if (res.ok) {
+    cita.checkin = true
+    const ahora = new Date()
+    cita.horaCheckin = `${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}`
+  }
 }
 
-const deshacerCheckin = (cita) => {
-  cita.checkin = false
-  cita.horaCheckin = null
+const deshacerCheckin = async (cita) => {
+  const res = await fetch(`${BASE_URL}/citas/${cita.id}`, {
+    method: 'PUT', headers: getHeaders(),
+    body: JSON.stringify({ citEstatus: 'agendada' })
+  })
+  if (res.ok) { cita.checkin = false; cita.horaCheckin = null }
 }
-
-onMounted(() => {
-  fechaActual.value = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-})
 
 const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 </script>
@@ -58,6 +73,8 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         <router-link to="/recepcionista/pacientes" class="enlace-menu"><span>👥</span> Pacientes</router-link>
         <router-link to="/recepcionista/checkin"   class="enlace-menu activo"><span>✅</span> Check-in</router-link>
         <router-link to="/recepcionista/reportes"  class="enlace-menu"><span>📊</span> Reportes</router-link>
+        <router-link to="/recepcionista/notificaciones"  class="enlace-menu"><span>🔔</span> Notificaciones</router-link>
+        <router-link to="/recepcionista/perfil"  class="enlace-menu"><span>👤</span> Mi Perfil</router-link>
       </nav>
       <div class="sidebar-pie"><button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button></div>
     </aside>

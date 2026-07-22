@@ -3,29 +3,72 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
+
 const medicoNombre = ref('Médico')
 const fechaActual = ref('')
 
-// ARREGLO COMPLETAMENTE VACÍO PARA MÉDICOS NUEVOS
 const citasHoy = ref([])
 
-// ESTADÍSTICAS INICIALIZADAS ESTRICTAMENTE EN CERO
 const estadisticas = ref({
   citasHoy: 0,
   citasSemana: 0,
   citasMes: 0
 })
 
+const fmt = (d) => d.toISOString().split('T')[0]
+
+const cargarDashboard = async () => {
+  const medId = localStorage.getItem('medicoId')
+  if (!medId) return
+
+  const hoy = new Date()
+  const inicioSemana = new Date(hoy)
+  inicioSemana.setDate(hoy.getDate() - hoy.getDay())
+  const finSemana = new Date(inicioSemana)
+  finSemana.setDate(inicioSemana.getDate() + 6)
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+  const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)
+
+  try {
+    const [resHoy, resSemana, resMes] = await Promise.all([
+      fetch(`${BASE_URL}/agenda/medico/${medId}?fecha=${fmt(hoy)}`, { headers: getHeaders() }),
+      fetch(`${BASE_URL}/agenda/medico/${medId}/semana?inicio=${fmt(inicioSemana)}&fin=${fmt(finSemana)}`, { headers: getHeaders() }),
+      fetch(`${BASE_URL}/agenda/medico/${medId}/semana?inicio=${fmt(inicioMes)}&fin=${fmt(finMes)}`, { headers: getHeaders() })
+    ])
+
+    if (resHoy.ok) {
+      const citas = await resHoy.json()
+      citasHoy.value = citas.map(c => ({
+        id: c.citId,
+        hora: c.citHora?.substring(0, 5),
+        paciente: `${c.paciente?.pacNombre ?? ''} ${c.paciente?.pacApePat ?? ''}`,
+        detalle: c.citMotivo
+      }))
+      estadisticas.value.citasHoy = citas.length
+    }
+    if (resSemana.ok) {
+      const data = await resSemana.json()
+      estadisticas.value.citasSemana = data.citas?.length ?? 0
+    }
+    if (resMes.ok) {
+      const data = await resMes.json()
+      estadisticas.value.citasMes = data.citas?.length ?? 0
+    }
+  } catch { /* silencioso */ }
+}
+
 onMounted(() => {
-  // Leer el nombre real guardado al registrarse
   const nombreGuardado = localStorage.getItem('usuarioNombre')
   if (nombreGuardado && nombreGuardado !== 'Medico' && nombreGuardado !== 'M') {
     medicoNombre.value = nombreGuardado
   }
 
-  // Generar la fecha del día de hoy
   const opciones = { day: 'numeric', month: 'long', year: 'numeric' }
   fechaActual.value = new Date().toLocaleDateString('es-ES', opciones)
+
+  cargarDashboard()
 })
 
 const cerrarSesion = () => {
@@ -55,6 +98,9 @@ const cerrarSesion = () => {
         </router-link>
         <router-link to="/medico/historiales" class="enlace-menu">
           <span class="icono">📂</span> Historial Médico
+        </router-link>
+        <router-link to="/medico/notificaciones" class="enlace-menu">
+          <span class="icono">🔔</span> Notificaciones
         </router-link>
       </nav>
 

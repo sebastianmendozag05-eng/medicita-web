@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Expediente;
+use App\Http\Controllers\Concerns\AutorizaAccesoPaciente;
 use Illuminate\Http\Request;
 
 class ExpedienteController extends Controller
 {
-    public function show($pacId)
+    use AutorizaAccesoPaciente;
+
+    public function show(Request $request, $pacId)
     {
+        $this->verificarAccesoPaciente($request, (int) $pacId);
         $expediente = Expediente::with('paciente')->where('pacId', $pacId)->firstOrFail();
         return response()->json($expediente);
     }
@@ -19,6 +23,8 @@ class ExpedienteController extends Controller
             'pacId' => 'required|exists:paciente,pacId|unique:expediente',
         ]);
 
+        $this->verificarAccesoPaciente($request, (int) $request->pacId);
+
         $expediente = Expediente::create($request->only([
             'pacId', 'expAlergias', 'expPadecimientos', 'expMedicamentos'
         ]));
@@ -28,6 +34,7 @@ class ExpedienteController extends Controller
 
     public function update(Request $request, $pacId)
     {
+        $this->verificarAccesoPaciente($request, (int) $pacId);
         $expediente = Expediente::where('pacId', $pacId)->firstOrFail();
         $expediente->update($request->only([
             'expAlergias', 'expPadecimientos', 'expMedicamentos'

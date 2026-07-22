@@ -1,61 +1,129 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
 
 const busqueda = ref('')
 const filtroEstado = ref('todos')
 const filtroMedico = ref('todos')
 const mostrarModalNueva = ref(false)
+const medicos = ref([])
+const pacientes = ref([])
+const citas = ref([])
 
-const medicos = ['Dr. Ramírez', 'Dra. López', 'Dr. Torres', 'Dra. Vega']
+const nuevaCita = ref({ pacId: '', medId: '', fecha: '', hora: '', motivo: '' })
+const especialidades = ref([])
+const especialidadNuevaCita = ref('')
+const horasDisponibles = ref([])
+const cargandoHoras = ref(false)
+const avisoDisponibilidad = ref('')
 
-const citas = ref([
-  { id: 1,  fecha: '2026-06-20', hora: '08:00', paciente: 'María González',  medico: 'Dr. Ramírez', motivo: 'Consulta general',         estado: 'completada' },
-  { id: 2,  fecha: '2026-06-20', hora: '09:30', paciente: 'Carlos Pérez',    medico: 'Dra. López',  motivo: 'Revisión de resultados',   estado: 'en-espera' },
-  { id: 3,  fecha: '2026-06-20', hora: '10:00', paciente: 'Ana Martínez',    medico: 'Dr. Ramírez', motivo: 'Control de presión',       estado: 'pendiente' },
-  { id: 4,  fecha: '2026-06-20', hora: '10:30', paciente: 'Luis Hernández',  medico: 'Dr. Torres',  motivo: 'Dolor de espalda',         estado: 'en-espera' },
-  { id: 5,  fecha: '2026-06-20', hora: '11:00', paciente: 'Sofía Morales',   medico: 'Dra. López',  motivo: 'Chequeo anual',            estado: 'pendiente' },
-  { id: 6,  fecha: '2026-06-21', hora: '08:30', paciente: 'Roberto Díaz',    medico: 'Dr. Torres',  motivo: 'Seguimiento tratamiento',  estado: 'pendiente' },
-  { id: 7,  fecha: '2026-06-21', hora: '09:00', paciente: 'Elena Castillo',  medico: 'Dra. Vega',   motivo: 'Migraña',                  estado: 'pendiente' },
-  { id: 8,  fecha: '2026-06-22', hora: '14:00', paciente: 'Jorge Navarro',   medico: 'Dr. Ramírez', motivo: 'Diabetes control',         estado: 'pendiente' },
-  { id: 9,  fecha: '2026-06-20', hora: '15:00', paciente: 'Paula Ríos',      medico: 'Dra. Vega',   motivo: 'Consulta dermatología',    estado: 'cancelada' },
-])
+onMounted(async () => {
+  const [resCitas, resMedicos, resPacientes, resEspecialidades] = await Promise.all([
+    fetch(`${BASE_URL}/citas`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/medicos`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/pacientes`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/especialidades`)
+  ])
+  if (resCitas.ok) citas.value = await resCitas.json()
+  if (resMedicos.ok) medicos.value = (await resMedicos.json()).filter(m => m.medEstatus === 1)
+  if (resPacientes.ok) pacientes.value = await resPacientes.json()
+  if (resEspecialidades.ok) especialidades.value = await resEspecialidades.json()
+})
 
-const nuevaCita = ref({ fecha: '', hora: '', paciente: '', medico: '', motivo: '' })
+const medicosParaNuevaCita = computed(() => {
+  if (!especialidadNuevaCita.value) return medicos.value
+  return medicos.value.filter(m =>
+    (m.especialidades ?? []).some(e => e.espeId === parseInt(especialidadNuevaCita.value))
+  )
+})
 
 const citasFiltradas = computed(() => {
   return citas.value.filter(c => {
     const q = busqueda.value.toLowerCase()
-    const coincideQ = !q || c.paciente.toLowerCase().includes(q) || c.medico.toLowerCase().includes(q) || c.motivo.toLowerCase().includes(q)
-    const coincideEstado = filtroEstado.value === 'todos' || c.estado === filtroEstado.value
-    const coincideMedico = filtroMedico.value === 'todos' || c.medico === filtroMedico.value
+    const paciente = `${c.paciente?.pacNombre ?? ''} ${c.paciente?.pacApePat ?? ''}`.toLowerCase()
+    const medico = `${c.medico?.medNombre ?? ''} ${c.medico?.medApePat ?? ''}`.toLowerCase()
+    const coincideQ = !q || paciente.includes(q) || medico.includes(q) || (c.citMotivo ?? '').toLowerCase().includes(q)
+    const coincideEstado = filtroEstado.value === 'todos' || c.citEstatus === filtroEstado.value
+    const coincideMedico = filtroMedico.value === 'todos' || c.medId == filtroMedico.value
     return coincideQ && coincideEstado && coincideMedico
-  }).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora))
+  })
 })
 
-const cambiarEstado = (cita, estado) => { cita.estado = estado }
+const cambiarEstado = async (cita, estado) => {
+  const res = await fetch(`${BASE_URL}/citas/${cita.citId}`, {
+    method: 'PUT', headers: getHeaders(),
+    body: JSON.stringify({ citEstatus: estado })
+  })
+  if (res.ok) cita.citEstatus = estado
+}
 
-const guardarNuevaCita = () => {
-  if (!nuevaCita.value.fecha || !nuevaCita.value.hora || !nuevaCita.value.paciente || !nuevaCita.value.medico) return
-  citas.value.push({ id: Date.now(), ...nuevaCita.value, estado: 'pendiente' })
-  nuevaCita.value = { fecha: '', hora: '', paciente: '', medico: '', motivo: '' }
-  mostrarModalNueva.value = false
+const cargarDisponibilidad = async () => {
+  horasDisponibles.value = []
+  avisoDisponibilidad.value = ''
+  nuevaCita.value.hora = ''
+  if (!nuevaCita.value.medId || !nuevaCita.value.fecha) return
+
+  cargandoHoras.value = true
+  try {
+    const res = await fetch(`${BASE_URL}/agenda/medico/${nuevaCita.value.medId}/disponibilidad?fecha=${nuevaCita.value.fecha}`, { headers: getHeaders() })
+    const data = await res.json()
+    if (!res.ok || !data.disponible) {
+      avisoDisponibilidad.value = data.motivo ?? 'El médico no tiene disponibilidad ese día.'
+      return
+    }
+    horasDisponibles.value = data.horas_disponibles ?? []
+    if (horasDisponibles.value.length === 0) {
+      avisoDisponibilidad.value = 'No quedan horarios disponibles ese día.'
+    }
+  } catch {
+    avisoDisponibilidad.value = 'No se pudo verificar la disponibilidad.'
+  } finally {
+    cargandoHoras.value = false
+  }
+}
+
+watch(() => [nuevaCita.value.medId, nuevaCita.value.fecha], cargarDisponibilidad)
+
+const guardarNuevaCita = async () => {
+  if (!nuevaCita.value.pacId || !nuevaCita.value.medId || !nuevaCita.value.fecha || !nuevaCita.value.hora) return
+  const res = await fetch(`${BASE_URL}/citas`, {
+    method: 'POST', headers: getHeaders(),
+    body: JSON.stringify({
+      medId: parseInt(nuevaCita.value.medId),
+      pacId: parseInt(nuevaCita.value.pacId),
+      citFecha: nuevaCita.value.fecha,
+      citHora: nuevaCita.value.hora + ':00',
+      citMotivo: nuevaCita.value.motivo || 'Consulta general'
+    })
+  })
+  if (res.ok) {
+    const nueva = await res.json()
+    citas.value.push(nueva)
+    mostrarModalNueva.value = false
+    nuevaCita.value = { pacId: '', medId: '', fecha: '', hora: '', motivo: '' }
+    horasDisponibles.value = []
+    avisoDisponibilidad.value = ''
+  }
 }
 
 const cancelarModal = () => {
-  nuevaCita.value = { fecha: '', hora: '', paciente: '', medico: '', motivo: '' }
+  nuevaCita.value = { pacId: '', medId: '', fecha: '', hora: '', motivo: '' }
   mostrarModalNueva.value = false
+  horasDisponibles.value = []
+  avisoDisponibilidad.value = ''
 }
 
 const formatearFecha = (f) => {
-  const [y, m, d] = f.split('-')
-  return new Date(y, m - 1, d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  if (!f) return ''
+  return new Date(f).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 }
 
-const colorEstado = (e) => ({ completada: 'badge-completada', 'en-espera': 'badge-espera', pendiente: 'badge-pendiente', cancelada: 'badge-cancelada' })[e] || 'badge-pendiente'
-const labelEstado = (e) => ({ completada: '✓ Completada', 'en-espera': '⏳ En espera', pendiente: '· Pendiente', cancelada: '✕ Cancelada' })[e] || e
+const colorEstado = (e) => ({ agendada: 'badge-pendiente', confirmada: 'badge-espera', completada: 'badge-completada', cancelada: 'badge-cancelada' })[e] || 'badge-pendiente'
+const labelEstado = (e) => ({ agendada: '· Agendada', confirmada: '⏳ Confirmada', completada: '✔ Completada', cancelada: '✗ Cancelada' })[e] || e
 
 const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 </script>
@@ -70,6 +138,8 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         <router-link to="/recepcionista/pacientes" class="enlace-menu"><span>👥</span> Pacientes</router-link>
         <router-link to="/recepcionista/checkin"   class="enlace-menu"><span>✅</span> Check-in</router-link>
         <router-link to="/recepcionista/reportes"  class="enlace-menu"><span>📊</span> Reportes</router-link>
+        <router-link to="/recepcionista/notificaciones"  class="enlace-menu"><span>🔔</span> Notificaciones</router-link>
+        <router-link to="/recepcionista/perfil"  class="enlace-menu"><span>👤</span> Mi Perfil</router-link>
       </nav>
       <div class="sidebar-pie"><button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button></div>
     </aside>
@@ -85,14 +155,14 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         <input v-model="busqueda" type="text" class="input-busqueda" placeholder="🔍 Buscar paciente, médico o motivo..." />
         <select v-model="filtroEstado" class="select-filtro">
           <option value="todos">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="en-espera">En espera</option>
+          <option value="agendada">Agendada</option>
+          <option value="confirmada">Confirmada</option>
           <option value="completada">Completada</option>
           <option value="cancelada">Cancelada</option>
         </select>
         <select v-model="filtroMedico" class="select-filtro">
           <option value="todos">Todos los médicos</option>
-          <option v-for="m in medicos" :key="m" :value="m">{{ m }}</option>
+          <option v-for="m in medicos" :key="m.medId" :value="m.medId">{{ m.medNombre }} {{ m.medApePat }}</option>
         </select>
       </div>
 
@@ -106,18 +176,18 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
           <span>Médico</span><span>Motivo</span><span>Estado</span><span>Acciones</span>
         </div>
 
-        <div v-for="cita in citasFiltradas" :key="cita.id" class="fila-cita">
-          <span class="celda-fecha">{{ formatearFecha(cita.fecha) }}</span>
-          <span class="celda-hora">{{ cita.hora }}</span>
-          <span class="celda-paciente">{{ cita.paciente }}</span>
-          <span class="celda-medico">{{ cita.medico }}</span>
-          <span class="celda-motivo">{{ cita.motivo }}</span>
-          <span :class="['badge-estado', colorEstado(cita.estado)]">{{ labelEstado(cita.estado) }}</span>
+        <div v-for="cita in citasFiltradas" :key="cita.citId" class="fila-cita">
+          <span class="celda-fecha">{{ formatearFecha(cita.citFecha) }}</span>
+          <span class="celda-hora">{{ cita.citHora?.substring(0,5) }}</span>
+          <span class="celda-paciente">{{ cita.paciente?.pacNombre }} {{ cita.paciente?.pacApePat }}</span>
+          <span class="celda-medico">Dr. {{ cita.medico?.medNombre }} {{ cita.medico?.medApePat }}</span>
+          <span class="celda-motivo">{{ cita.citMotivo }}</span>
+          <span :class="['badge-estado', colorEstado(cita.citEstatus)]">{{ labelEstado(cita.citEstatus) }}</span>
           <div class="celda-acciones">
-            <button v-if="cita.estado === 'pendiente'" @click="cambiarEstado(cita, 'en-espera')" class="btn-mini btn-espera" title="Marcar en espera">⏳</button>
-            <button v-if="cita.estado !== 'completada' && cita.estado !== 'cancelada'" @click="cambiarEstado(cita, 'completada')" class="btn-mini btn-ok" title="Completar">✓</button>
-            <button v-if="cita.estado !== 'cancelada'" @click="cambiarEstado(cita, 'cancelada')" class="btn-mini btn-cancel" title="Cancelar">✕</button>
-            <button v-if="cita.estado === 'cancelada'" @click="cambiarEstado(cita, 'pendiente')" class="btn-mini btn-reactivar" title="Reactivar">↩</button>
+            <button v-if="cita.citEstatus === 'agendada'" @click="cambiarEstado(cita, 'confirmada')" class="btn-mini btn-espera">⏳</button>
+            <button v-if="cita.citEstatus !== 'completada' && cita.citEstatus !== 'cancelada'" @click="cambiarEstado(cita, 'completada')" class="btn-mini btn-ok">✓</button>
+            <button v-if="cita.citEstatus !== 'cancelada'" @click="cambiarEstado(cita, 'cancelada')" class="btn-mini btn-cancel">✕</button>
+            <button v-if="cita.citEstatus === 'cancelada'" @click="cambiarEstado(cita, 'agendada')" class="btn-mini btn-reactivar">↩</button>
           </div>
         </div>
 
@@ -134,13 +204,23 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         <div class="grilla-modal">
           <div class="campo-modal">
             <label>Paciente *</label>
-            <input v-model="nuevaCita.paciente" type="text" class="input-modal" placeholder="Nombre del paciente" />
+            <select v-model="nuevaCita.pacId" class="input-modal">
+              <option value="">Seleccionar paciente</option>
+              <option v-for="p in pacientes" :key="p.pacId" :value="p.pacId">{{ p.pacNombre }} {{ p.pacApePat }}</option>
+            </select>
+          </div>
+          <div class="campo-modal">
+            <label>Especialidad</label>
+            <select v-model="especialidadNuevaCita" class="input-modal">
+              <option value="">Todas las especialidades</option>
+              <option v-for="e in especialidades" :key="e.espeId" :value="e.espeId">{{ e.espeNombre }}</option>
+            </select>
           </div>
           <div class="campo-modal">
             <label>Médico *</label>
-            <select v-model="nuevaCita.medico" class="input-modal">
+            <select v-model="nuevaCita.medId" class="input-modal">
               <option value="">Seleccionar médico</option>
-              <option v-for="m in medicos" :key="m" :value="m">{{ m }}</option>
+              <option v-for="m in medicosParaNuevaCita" :key="m.medId" :value="m.medId">{{ m.medNombre }} {{ m.medApePat }}</option>
             </select>
           </div>
           <div class="campo-modal">
@@ -149,7 +229,13 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
           </div>
           <div class="campo-modal">
             <label>Hora *</label>
-            <input v-model="nuevaCita.hora" type="time" class="input-modal" />
+            <select v-model="nuevaCita.hora" class="input-modal" :disabled="!nuevaCita.medId || !nuevaCita.fecha || cargandoHoras">
+              <option value="">{{ cargandoHoras ? 'Consultando horarios...' : 'Seleccionar hora' }}</option>
+              <option v-for="h in horasDisponibles" :key="h" :value="h">{{ h }}</option>
+            </select>
+          </div>
+          <div class="campo-modal campo-ancho" v-if="avisoDisponibilidad">
+            <p class="aviso-disponibilidad">⚠️ {{ avisoDisponibilidad }}</p>
           </div>
           <div class="campo-modal campo-ancho">
             <label>Motivo de consulta</label>
@@ -280,6 +366,7 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 }
 .input-modal:focus { border-color: #0d8a72; background: white; }
 .botones-modal { display: flex; justify-content: flex-end; gap: 10px; }
+.aviso-disponibilidad { color: #b45309; font-size: 13px; margin: 0; }
 .btn-modal-cancelar {
   padding: 9px 18px; border: 1px solid #e2e8f0; border-radius: 8px;
   background: #f1f5f9; color: #64748b; font-weight: 600; font-size: 14px; cursor: pointer;

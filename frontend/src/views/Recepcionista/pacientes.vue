@@ -1,62 +1,58 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
+
 const busqueda = ref('')
 const pacienteSeleccionado = ref(null)
 const mostrarModalNuevo = ref(false)
+const pacientes = ref([])
 
-const pacientes = ref([
-  { id: 1, nombre: 'María González',   edad: 34, sexo: 'F', telefono: '442 111 2233', email: 'maria@email.com',   sangre: 'O+',  alergias: 'Penicilina',    ultimaVisita: '2026-06-20', totalCitas: 5 },
-  { id: 2, nombre: 'Carlos Pérez',     edad: 52, sexo: 'M', telefono: '442 222 3344', email: 'carlos@email.com',  sangre: 'A+',  alergias: 'Ninguna',       ultimaVisita: '2026-06-20', totalCitas: 3 },
-  { id: 3, nombre: 'Ana Martínez',     edad: 28, sexo: 'F', telefono: '442 333 4455', email: 'ana@email.com',     sangre: 'B-',  alergias: 'Ibuprofeno',    ultimaVisita: '2026-06-18', totalCitas: 7 },
-  { id: 4, nombre: 'Luis Hernández',   edad: 45, sexo: 'M', telefono: '442 444 5566', email: 'luis@email.com',    sangre: 'AB+', alergias: 'Ninguna',       ultimaVisita: '2026-06-20', totalCitas: 2 },
-  { id: 5, nombre: 'Sofía Morales',    edad: 61, sexo: 'F', telefono: '442 555 6677', email: 'sofia@email.com',   sangre: 'O-',  alergias: 'Aspirina',      ultimaVisita: '2026-06-10', totalCitas: 9 },
-  { id: 6, nombre: 'Roberto Díaz',     edad: 38, sexo: 'M', telefono: '442 666 7788', email: 'roberto@email.com', sangre: 'A-',  alergias: 'Ninguna',       ultimaVisita: '2026-06-15', totalCitas: 4 },
-  { id: 7, nombre: 'Elena Castillo',   edad: 22, sexo: 'F', telefono: '442 777 8899', email: 'elena@email.com',   sangre: 'B+',  alergias: 'Látex',         ultimaVisita: '2026-06-21', totalCitas: 1 },
-])
+const nuevoPaciente = ref({ pacNombre: '', pacApePat: '', pacApeMat: '', pacFechaNac: '', pacNSS: '', pacSexo: '', pacTelefono: '', pacCorreo: '', pacPeso: '', pacEstatura: '' })
 
-const nuevoPaciente = ref({ nombre: '', edad: '', sexo: '', telefono: '', email: '', sangre: '', alergias: '' })
+onMounted(async () => {
+  const res = await fetch(`${BASE_URL}/pacientes`, { headers: getHeaders() })
+  if (res.ok) pacientes.value = await res.json()
+})
 
 const pacientesFiltrados = computed(() => {
   const q = busqueda.value.toLowerCase()
   if (!q) return pacientes.value
   return pacientes.value.filter(p =>
-    p.nombre.toLowerCase().includes(q) ||
-    p.email.toLowerCase().includes(q) ||
-    p.telefono.includes(q)
+    `${p.pacNombre} ${p.pacApePat}`.toLowerCase().includes(q) ||
+    (p.pacCorreo ?? '').toLowerCase().includes(q) ||
+    (p.pacTelefono ?? '').includes(q)
   )
 })
 
 const seleccionar = (p) => { pacienteSeleccionado.value = p }
 
-const guardarPaciente = () => {
-  if (!nuevoPaciente.value.nombre || !nuevoPaciente.value.telefono) return
-  pacientes.value.push({
-    id: Date.now(),
-    ...nuevoPaciente.value,
-    edad: Number(nuevoPaciente.value.edad),
-    ultimaVisita: new Date().toISOString().split('T')[0],
-    totalCitas: 0
+const guardarPaciente = async () => {
+  if (!nuevoPaciente.value.pacNombre || !nuevoPaciente.value.pacTelefono) return
+  const res = await fetch(`${BASE_URL}/pacientes`, {
+    method: 'POST', headers: getHeaders(),
+    body: JSON.stringify({ ...nuevoPaciente.value, pacPeso: parseFloat(nuevoPaciente.value.pacPeso), pacEstatura: parseFloat(nuevoPaciente.value.pacEstatura) })
   })
-  nuevoPaciente.value = { nombre: '', edad: '', sexo: '', telefono: '', email: '', sangre: '', alergias: '' }
-  mostrarModalNuevo.value = false
+  if (res.ok) {
+    const nuevo = await res.json()
+    pacientes.value.push(nuevo)
+    mostrarModalNuevo.value = false
+    nuevoPaciente.value = { pacNombre: '', pacApePat: '', pacApeMat: '', pacFechaNac: '', pacNSS: '', pacSexo: '', pacTelefono: '', pacCorreo: '', pacPeso: '', pacEstatura: '' }
+  }
 }
 
-const cancelarModal = () => {
-  nuevoPaciente.value = { nombre: '', edad: '', sexo: '', telefono: '', email: '', sangre: '', alergias: '' }
-  mostrarModalNuevo.value = false
-}
+const cancelarModal = () => { mostrarModalNuevo.value = false }
 
 const formatearFecha = (f) => {
-  const [y, m, d] = f.split('-')
-  return new Date(y, m - 1, d).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+  if (!f) return '—'
+  return new Date(f).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-const colorAvatar = (sexo) => sexo === 'F' ? 'avatar-f' : 'avatar-m'
-const inicial = (nombre) => nombre.charAt(0).toUpperCase()
-
+const colorAvatar = (sexo) => sexo === 'Femenino' ? 'avatar-f' : 'avatar-m'
+const inicial = (nombre) => (nombre ?? '?').charAt(0).toUpperCase()
 const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 </script>
 
@@ -70,6 +66,8 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
         <router-link to="/recepcionista/pacientes" class="enlace-menu activo"><span>👥</span> Pacientes</router-link>
         <router-link to="/recepcionista/checkin"   class="enlace-menu"><span>✅</span> Check-in</router-link>
         <router-link to="/recepcionista/reportes"  class="enlace-menu"><span>📊</span> Reportes</router-link>
+        <router-link to="/recepcionista/notificaciones"  class="enlace-menu"><span>🔔</span> Notificaciones</router-link>
+        <router-link to="/recepcionista/perfil"  class="enlace-menu"><span>👤</span> Mi Perfil</router-link>
       </nav>
       <div class="sidebar-pie"><button @click="cerrarSesion" class="btn-cerrar-sesion">🚪 Cerrar Sesión</button></div>
     </aside>
@@ -81,32 +79,27 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
       </div>
 
       <div class="layout-pacientes">
-        <!-- Lista -->
         <div class="panel-lista">
           <div class="busqueda-wrap">
             <input v-model="busqueda" type="text" class="input-busqueda" placeholder="🔍 Buscar por nombre, email o teléfono..." />
           </div>
           <p class="conteo">{{ pacientesFiltrados.length }} paciente(s)</p>
-
           <div class="lista-pacientes">
-            <div
-              v-for="p in pacientesFiltrados" :key="p.id"
+            <div v-for="p in pacientesFiltrados" :key="p.pacId"
               class="fila-paciente"
-              :class="{ 'fila-activa': pacienteSeleccionado?.id === p.id }"
-              @click="seleccionar(p)"
-            >
-              <div :class="['avatar', colorAvatar(p.sexo)]">{{ inicial(p.nombre) }}</div>
+              :class="{ 'fila-activa': pacienteSeleccionado?.pacId === p.pacId }"
+              @click="seleccionar(p)">
+              <div :class="['avatar', colorAvatar(p.pacSexo)]">{{ inicial(p.pacNombre) }}</div>
               <div class="info-fila">
-                <p class="nombre-fila">{{ p.nombre }}</p>
-                <p class="meta-fila">{{ p.edad }} años · {{ p.telefono }}</p>
-                <p class="meta-fila">{{ p.totalCitas }} cita(s) · Última: {{ formatearFecha(p.ultimaVisita) }}</p>
+                <p class="nombre-fila">{{ p.pacNombre }} {{ p.pacApePat }}</p>
+                <p class="meta-fila">{{ p.pacTelefono }}</p>
+                <p class="meta-fila">{{ p.pacCorreo }}</p>
               </div>
             </div>
             <div v-if="pacientesFiltrados.length === 0" class="sin-resultados">No se encontraron pacientes</div>
           </div>
         </div>
 
-        <!-- Detalle -->
         <div class="panel-detalle">
           <div v-if="!pacienteSeleccionado" class="estado-vacio">
             <div class="icono-vacio">👥</div>
@@ -116,44 +109,35 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
 
           <div v-else>
             <div class="tarjeta-perfil">
-              <div :class="['avatar-grande', colorAvatar(pacienteSeleccionado.sexo)]">{{ inicial(pacienteSeleccionado.nombre) }}</div>
+              <div :class="['avatar-grande', colorAvatar(pacienteSeleccionado.pacSexo)]">{{ inicial(pacienteSeleccionado.pacNombre) }}</div>
               <div class="datos-perfil">
-                <h2 class="nombre-grande">{{ pacienteSeleccionado.nombre }}</h2>
+                <h2 class="nombre-grande">{{ pacienteSeleccionado.pacNombre }} {{ pacienteSeleccionado.pacApePat }}</h2>
                 <div class="badges-row">
-                  <span class="badge-dato">{{ pacienteSeleccionado.edad }} años</span>
-                  <span class="badge-dato">{{ pacienteSeleccionado.sexo === 'F' ? 'Femenino' : 'Masculino' }}</span>
-                  <span class="badge-sangre">🩸 {{ pacienteSeleccionado.sangre }}</span>
+                  <span class="badge-dato">{{ pacienteSeleccionado.pacSexo }}</span>
                 </div>
-              </div>
-              <div class="resumen-citas">
-                <span class="num-citas">{{ pacienteSeleccionado.totalCitas }}</span>
-                <span class="label-citas">cita(s)</span>
               </div>
             </div>
 
             <div class="grilla-datos">
               <div class="dato-grupo">
                 <span class="dato-label">📞 Teléfono</span>
-                <span class="dato-valor">{{ pacienteSeleccionado.telefono }}</span>
+                <span class="dato-valor">{{ pacienteSeleccionado.pacTelefono }}</span>
               </div>
               <div class="dato-grupo">
                 <span class="dato-label">📧 Email</span>
-                <span class="dato-valor">{{ pacienteSeleccionado.email || '—' }}</span>
+                <span class="dato-valor">{{ pacienteSeleccionado.pacCorreo || '—' }}</span>
               </div>
               <div class="dato-grupo">
-                <span class="dato-label">⚕️ Alergias</span>
-                <span class="dato-valor">{{ pacienteSeleccionado.alergias || 'Ninguna' }}</span>
+                <span class="dato-label">📅 Fecha nacimiento</span>
+                <span class="dato-valor">{{ formatearFecha(pacienteSeleccionado.pacFechaNac) }}</span>
               </div>
               <div class="dato-grupo">
-                <span class="dato-label">📅 Última visita</span>
-                <span class="dato-valor">{{ formatearFecha(pacienteSeleccionado.ultimaVisita) }}</span>
+                <span class="dato-label">⚖️ Peso / Estatura</span>
+                <span class="dato-valor">{{ pacienteSeleccionado.pacPeso }} kg / {{ pacienteSeleccionado.pacEstatura }} m</span>
               </div>
             </div>
 
-            <router-link
-              :to="`/recepcionista/citas`"
-              class="btn-ver-citas"
-            >
+            <router-link to="/recepcionista/citas" class="btn-ver-citas">
               Ver citas de este paciente →
             </router-link>
           </div>
@@ -161,45 +145,53 @@ const cerrarSesion = () => { localStorage.clear(); router.push('/login') }
       </div>
     </div>
 
-    <!-- Modal nuevo paciente -->
     <div v-if="mostrarModalNuevo" class="overlay-modal" @click.self="cancelarModal">
       <div class="modal">
         <h2 class="titulo-modal">Registrar nuevo paciente</h2>
         <div class="grilla-modal">
-          <div class="campo-modal campo-ancho">
-            <label>Nombre completo *</label>
-            <input v-model="nuevoPaciente.nombre" type="text" class="input-modal" placeholder="Nombre del paciente" />
+          <div class="campo-modal">
+            <label>Nombre(s) *</label>
+            <input v-model="nuevoPaciente.pacNombre" type="text" class="input-modal" placeholder="Nombre(s)" />
           </div>
           <div class="campo-modal">
-            <label>Edad</label>
-            <input v-model="nuevoPaciente.edad" type="number" class="input-modal" placeholder="Años" min="0" max="120" />
+            <label>Apellido Paterno *</label>
+            <input v-model="nuevoPaciente.pacApePat" type="text" class="input-modal" placeholder="Apellido Paterno" />
+          </div>
+          <div class="campo-modal">
+            <label>Apellido Materno</label>
+            <input v-model="nuevoPaciente.pacApeMat" type="text" class="input-modal" placeholder="Apellido Materno" />
           </div>
           <div class="campo-modal">
             <label>Sexo</label>
-            <select v-model="nuevoPaciente.sexo" class="input-modal">
+            <select v-model="nuevoPaciente.pacSexo" class="input-modal">
               <option value="">Seleccionar</option>
-              <option value="F">Femenino</option>
-              <option value="M">Masculino</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
             </select>
+          </div>
+          <div class="campo-modal">
+            <label>Fecha de Nacimiento *</label>
+            <input v-model="nuevoPaciente.pacFechaNac" type="date" class="input-modal" />
+          </div>
+          <div class="campo-modal">
+            <label>NSS *</label>
+            <input v-model="nuevoPaciente.pacNSS" type="text" class="input-modal" placeholder="NSS" />
           </div>
           <div class="campo-modal">
             <label>Teléfono *</label>
-            <input v-model="nuevoPaciente.telefono" type="tel" class="input-modal" placeholder="442 000 0000" />
+            <input v-model="nuevoPaciente.pacTelefono" type="tel" class="input-modal" placeholder="442 000 0000" />
           </div>
           <div class="campo-modal">
             <label>Email</label>
-            <input v-model="nuevoPaciente.email" type="email" class="input-modal" placeholder="correo@ejemplo.com" />
+            <input v-model="nuevoPaciente.pacCorreo" type="email" class="input-modal" placeholder="correo@ejemplo.com" />
           </div>
           <div class="campo-modal">
-            <label>Tipo de sangre</label>
-            <select v-model="nuevoPaciente.sangre" class="input-modal">
-              <option value="">Seleccionar</option>
-              <option v-for="t in ['A+','A-','B+','B-','AB+','AB-','O+','O-']" :key="t" :value="t">{{ t }}</option>
-            </select>
+            <label>Peso (kg)</label>
+            <input v-model="nuevoPaciente.pacPeso" type="number" class="input-modal" placeholder="65.5" />
           </div>
-          <div class="campo-modal campo-ancho">
-            <label>Alergias conocidas</label>
-            <input v-model="nuevoPaciente.alergias" type="text" class="input-modal" placeholder="Ej. Penicilina, Aspirina, o Ninguna" />
+          <div class="campo-modal">
+            <label>Estatura (m)</label>
+            <input v-model="nuevoPaciente.pacEstatura" type="number" class="input-modal" placeholder="1.70" />
           </div>
         </div>
         <div class="botones-modal">

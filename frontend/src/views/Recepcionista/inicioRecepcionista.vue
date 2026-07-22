@@ -5,22 +5,14 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const fechaActual = ref('')
 const nombreRecepcionista = ref('Recepcionista')
-
-const stats = ref({
-  citasHoy: 35,
-  pacientesEnEspera: 8,
-  citasPendientes: 9,
-  citasCompletadas: 18
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${localStorage.getItem('token')}`
 })
 
-const citasHoy = ref([
-  { id: 1, hora: '08:00', paciente: 'María González', medico: 'Dr. Ramírez', estado: 'completada' },
-  { id: 2, hora: '09:30', paciente: 'Carlos Pérez', medico: 'Dra. López', estado: 'en-espera' },
-  { id: 3, hora: '10:00', paciente: 'Ana Martínez', medico: 'Dr. Ramírez', estado: 'pendiente' },
-  { id: 4, hora: '10:30', paciente: 'Luis Hernández', medico: 'Dr. Torres', estado: 'en-espera' },
-  { id: 5, hora: '11:00', paciente: 'Sofía Morales', medico: 'Dra. López', estado: 'pendiente' },
-  { id: 6, hora: '11:30', paciente: 'Roberto Díaz', medico: 'Dr. Torres', estado: 'pendiente' },
-])
+const stats = ref({ citasHoy: 0, pacientesEnEspera: 0, citasPendientes: 0, citasCompletadas: 0 })
+const citasHoy = ref([])
 
 const colorEstado = (estado) => ({
   'completada': 'badge-completada',
@@ -30,16 +22,49 @@ const colorEstado = (estado) => ({
 })[estado] || 'badge-pendiente'
 
 const labelEstado = (estado) => ({
-  'completada': '✓ Completada',
+  'completada': '✔ Completada',
   'en-espera': '⏳ En espera',
   'pendiente': '· Pendiente',
-  'cancelada': '✕ Cancelada'
+  'cancelada': '✗ Cancelada'
 })[estado] || estado
 
-onMounted(() => {
+onMounted(async () => {
   const nombre = localStorage.getItem('usuarioNombre')
   if (nombre) nombreRecepcionista.value = nombre
   fechaActual.value = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  try {
+    const hoy = new Date().toISOString().split('T')[0]
+
+    const [resCitas, resResumen] = await Promise.all([
+      fetch(`${BASE_URL}/agenda/todos?fecha=${hoy}`, { headers: getHeaders() }),
+      fetch(`${BASE_URL}/reportes/resumen`, { headers: getHeaders() })
+    ])
+
+    if (resResumen.ok) {
+      const resumen = await resResumen.json()
+      stats.value.citasHoy = resumen.total_citas
+      stats.value.citasPendientes = resumen.pendientes
+      stats.value.citasCompletadas = resumen.completadas
+      stats.value.pacientesEnEspera = resumen.pendientes
+    }
+
+    if (resCitas.ok) {
+      const medicos = await resCitas.json()
+      const todasLasCitas = medicos.flatMap(m => 
+        (m.citas ?? []).map(c => ({
+          id: c.citId,
+          hora: c.citHora?.substring(0, 5),
+          paciente: `${c.paciente?.pacNombre ?? ''} ${c.paciente?.pacApePat ?? ''}`,
+          medico: `Dr. ${m.medNombre} ${m.medApePat}`,
+          estado: c.citEstatus === 'agendada' ? 'pendiente' : c.citEstatus
+        }))
+      )
+      citasHoy.value = todasLasCitas.slice(0, 6)
+    }
+  } catch (e) {
+    console.error('Error cargando datos:', e)
+  }
 })
 
 const cerrarSesion = () => {
@@ -70,6 +95,12 @@ const cerrarSesion = () => {
         </router-link>
         <router-link to="/recepcionista/reportes" class="enlace-menu">
           <span class="icono">📊</span> Reportes
+        </router-link>
+        <router-link to="/recepcionista/notificaciones" class="enlace-menu">
+          <span class="icono">🔔</span> Notificaciones
+        </router-link>
+        <router-link to="/recepcionista/perfil" class="enlace-menu">
+          <span class="icono">👤</span> Mi Perfil
         </router-link>
       </nav>
       <div class="sidebar-pie">

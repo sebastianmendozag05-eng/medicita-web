@@ -8,80 +8,73 @@
       <button class="btn-primary" @click="abrirModal()">+ Nueva cita</button>
     </div>
 
-    <!-- Filtros -->
     <div class="filtros-bar">
       <input v-model="busqueda" type="text" placeholder="Buscar paciente o médico..." class="input-search" />
       <select v-model="filtroEstado" class="select-filtro">
         <option value="">Todos los estados</option>
+        <option value="agendada">Agendada</option>
         <option value="confirmada">Confirmada</option>
-        <option value="pendiente">Pendiente</option>
         <option value="cancelada">Cancelada</option>
         <option value="completada">Completada</option>
       </select>
       <input v-model="filtroFecha" type="date" class="select-filtro" />
     </div>
 
-    <!-- Tabla -->
     <div class="card">
       <table class="tabla">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Paciente</th>
-            <th>Médico</th>
-            <th>Especialidad</th>
-            <th>Fecha</th>
-            <th>Hora</th>
-            <th>Estado</th>
-            <th>Acciones</th>
+            <th>#</th><th>Paciente</th><th>Médico</th><th>Motivo</th>
+            <th>Fecha</th><th>Hora</th><th>Estado</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="cita in citasFiltradas" :key="cita.id">
-            <td class="id-col">{{ cita.id }}</td>
-            <td>{{ cita.paciente }}</td>
-            <td>{{ cita.medico }}</td>
-            <td>{{ cita.especialidad }}</td>
-            <td>{{ cita.fecha }}</td>
-            <td>{{ cita.hora }}</td>
-            <td><span class="chip" :class="cita.estado">{{ cita.estadoLabel }}</span></td>
+          <tr v-for="cita in citasFiltradas" :key="cita.citId">
+            <td class="id-col">{{ cita.citId }}</td>
+            <td>{{ cita.paciente?.pacNombre }} {{ cita.paciente?.pacApePat }}</td>
+            <td>Dr. {{ cita.medico?.medNombre }}</td>
+            <td>{{ cita.citMotivo }}</td>
+            <td>{{ cita.citFecha?.split('T')[0] }}</td>
+            <td>{{ cita.citHora?.substring(0,5) }}</td>
+            <td><span class="chip" :class="cita.citEstatus">{{ cita.citEstatus }}</span></td>
             <td class="acciones">
-              <button class="icon-btn edit" @click="abrirModal(cita)" title="Editar">✏️</button>
-              <button class="icon-btn delete" @click="eliminarCita(cita.id)" title="Cancelar">🗑️</button>
+              <button class="icon-btn edit" @click="abrirModal(cita)">✏️</button>
+              <button class="icon-btn delete" @click="eliminarCita(cita.citId)">🗑️</button>
             </td>
           </tr>
           <tr v-if="citasFiltradas.length === 0">
-            <td colspan="8" class="empty">No se encontraron citas con ese filtro.</td>
+            <td colspan="8" class="empty">No se encontraron citas.</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- Modal nueva/editar cita -->
     <div v-if="modalAbierto" class="modal-overlay" @click.self="modalAbierto = false">
       <div class="modal">
         <h3>{{ citaEditando ? 'Editar cita' : 'Nueva cita' }}</h3>
         <div class="form-group">
-          <input type="text" v-model="form.paciente" placeholder="Nombre del paciente" />
+          <select v-model="form.pacId">
+            <option value="">Seleccionar paciente</option>
+            <option v-for="p in pacientes" :key="p.pacId" :value="p.pacId">{{ p.pacNombre }} {{ p.pacApePat }}</option>
+          </select>
         </div>
         <div class="form-group">
-          <input type="text" v-model="form.medico" placeholder="Médico" />
+          <select v-model="form.medId">
+            <option value="">Seleccionar médico</option>
+            <option v-for="m in medicos" :key="m.medId" :value="m.medId">Dr. {{ m.medNombre }} {{ m.medApePat }}</option>
+          </select>
         </div>
         <div class="form-group">
-          <input type="text" v-model="form.especialidad" placeholder="Especialidad" />
+          <input type="text" v-model="form.citMotivo" placeholder="Motivo de consulta" />
         </div>
         <div class="form-row">
-          <div class="form-group">
-            <input type="date" v-model="form.fecha" />
-          </div>
-          <div class="form-group">
-            <input type="time" v-model="form.hora" />
-          </div>
+          <div class="form-group"><input type="date" v-model="form.citFecha" /></div>
+          <div class="form-group"><input type="time" v-model="form.citHora" /></div>
         </div>
         <div class="form-group">
-          <select v-model="form.estado">
+          <select v-model="form.citEstatus">
+            <option value="agendada">Agendada</option>
             <option value="confirmada">Confirmada</option>
-            <option value="pendiente">Pendiente</option>
             <option value="cancelada">Cancelada</option>
             <option value="completada">Completada</option>
           </select>
@@ -96,61 +89,67 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
-const busqueda    = ref('')
+const BASE_URL = 'http://localhost:8000/api/v1'
+const getHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` })
+
+const busqueda = ref('')
 const filtroEstado = ref('')
-const filtroFecha  = ref('')
+const filtroFecha = ref('')
 const modalAbierto = ref(false)
 const citaEditando = ref(null)
+const citas = ref([])
+const medicos = ref([])
+const pacientes = ref([])
 
-const form = ref({ paciente: '', medico: '', especialidad: '', fecha: '', hora: '', estado: 'pendiente' })
+const form = ref({ pacId: '', medId: '', citFecha: '', citHora: '', citMotivo: '', citEstatus: 'agendada' })
 
-const labelEstado = { confirmada: 'Confirmada', pendiente: 'Pendiente', cancelada: 'Cancelada', completada: 'Completada' }
-
-const citas = ref([
-  { id: 1, paciente: 'Ana Martínez',   medico: 'Dr. López',    especialidad: 'Cardiología',      fecha: '2025-06-25', hora: '09:00', estado: 'confirmada',  estadoLabel: 'Confirmada'  },
-  { id: 2, paciente: 'Luis Hernández', medico: 'Dra. Ramírez', especialidad: 'Pediatría',         fecha: '2025-06-25', hora: '10:30', estado: 'pendiente',   estadoLabel: 'Pendiente'   },
-  { id: 3, paciente: 'Sofía Torres',   medico: 'Dr. Gómez',    especialidad: 'Medicina General', fecha: '2025-06-25', hora: '11:00', estado: 'confirmada',  estadoLabel: 'Confirmada'  },
-  { id: 4, paciente: 'Carlos Mendoza', medico: 'Dr. López',    especialidad: 'Cardiología',      fecha: '2025-06-24', hora: '12:00', estado: 'cancelada',   estadoLabel: 'Cancelada'   },
-  { id: 5, paciente: 'María Sánchez',  medico: 'Dra. Ramírez', especialidad: 'Pediatría',         fecha: '2025-06-26', hora: '13:30', estado: 'completada',  estadoLabel: 'Completada'  },
-])
-
-const citasFiltradas = computed(() => {
-  return citas.value.filter(c => {
-    const q = busqueda.value.toLowerCase()
-    const matchQ = !q || c.paciente.toLowerCase().includes(q) || c.medico.toLowerCase().includes(q)
-    const matchE = !filtroEstado.value || c.estado === filtroEstado.value
-    const matchF = !filtroFecha.value || c.fecha === filtroFecha.value
-    return matchQ && matchE && matchF
-  })
+onMounted(async () => {
+  const [resCitas, resMedicos, resPacientes] = await Promise.all([
+    fetch(`${BASE_URL}/citas`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/medicos`, { headers: getHeaders() }),
+    fetch(`${BASE_URL}/pacientes`, { headers: getHeaders() })
+  ])
+  if (resCitas.ok) citas.value = await resCitas.json()
+  if (resMedicos.ok) medicos.value = await resMedicos.json()
+  if (resPacientes.ok) pacientes.value = await resPacientes.json()
 })
+
+const citasFiltradas = computed(() => citas.value.filter(c => {
+  const q = busqueda.value.toLowerCase()
+  const paciente = `${c.paciente?.pacNombre ?? ''} ${c.paciente?.pacApePat ?? ''}`.toLowerCase()
+  const medico = `${c.medico?.medNombre ?? ''}`.toLowerCase()
+  const matchQ = !q || paciente.includes(q) || medico.includes(q)
+  const matchE = !filtroEstado.value || c.citEstatus === filtroEstado.value
+  const matchF = !filtroFecha.value || c.citFecha?.startsWith(filtroFecha.value)
+  return matchQ && matchE && matchF
+}))
 
 const abrirModal = (cita = null) => {
   citaEditando.value = cita
   form.value = cita
-    ? { ...cita }
-    : { paciente: '', medico: '', especialidad: '', fecha: '', hora: '', estado: 'pendiente' }
+    ? { pacId: cita.pacId, medId: cita.medId, citFecha: cita.citFecha?.split('T')[0], citHora: cita.citHora?.substring(0,5), citMotivo: cita.citMotivo, citEstatus: cita.citEstatus }
+    : { pacId: '', medId: '', citFecha: '', citHora: '', citMotivo: '', citEstatus: 'agendada' }
   modalAbierto.value = true
 }
 
-const guardarCita = () => {
+const guardarCita = async () => {
+  const body = { medId: parseInt(form.value.medId), pacId: parseInt(form.value.pacId), citFecha: form.value.citFecha, citHora: form.value.citHora + ':00', citMotivo: form.value.citMotivo, citEstatus: form.value.citEstatus }
   if (citaEditando.value) {
-    const idx = citas.value.findIndex(c => c.id === citaEditando.value.id)
-    citas.value[idx] = { ...form.value, estadoLabel: labelEstado[form.value.estado] }
+    const res = await fetch(`${BASE_URL}/citas/${citaEditando.value.citId}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(body) })
+    if (res.ok) { const idx = citas.value.findIndex(c => c.citId === citaEditando.value.citId); citas.value[idx] = await res.json() }
   } else {
-    const newId = Math.max(...citas.value.map(c => c.id)) + 1
-    citas.value.push({ ...form.value, id: newId, estadoLabel: labelEstado[form.value.estado] })
+    const res = await fetch(`${BASE_URL}/citas`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) })
+    if (res.ok) citas.value.push(await res.json())
   }
   modalAbierto.value = false
 }
 
-const eliminarCita = (id) => {
-  if (confirm('¿Cancelar esta cita?')) {
-    const idx = citas.value.findIndex(c => c.id === id)
-    citas.value[idx].estado = 'cancelada'
-    citas.value[idx].estadoLabel = 'Cancelada'
-  }
+const eliminarCita = async (id) => {
+  if (!confirm('¿Cancelar esta cita?')) return
+  const res = await fetch(`${BASE_URL}/citas/${id}`, { method: 'DELETE', headers: getHeaders() })
+  if (res.ok) { const idx = citas.value.findIndex(c => c.citId === id); citas.value[idx].citEstatus = 'cancelada' }
 }
 </script>
 
