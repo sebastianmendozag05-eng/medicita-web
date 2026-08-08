@@ -120,13 +120,13 @@ onMounted(cargarNotificaciones)
         </button>
       </div>
 
-      <div v-if="cargando" class="tarjeta-lista">
+      <div v-if="cargando" class="tarjeta-vacia">
         <p class="texto-vacio-simple">Cargando...</p>
       </div>
-      <div v-else-if="notificacionesFiltradas.length === 0" class="tarjeta-lista">
+      <div v-else-if="notificacionesFiltradas.length === 0" class="tarjeta-vacia">
         <p class="texto-vacio-simple">No tienes notificaciones en esta categoría.</p>
       </div>
-      <div v-else class="tarjeta-lista">
+      <div v-else class="lista-notif">
         <div
           v-for="n in notificacionesFiltradas" :key="n.notifId"
           @click="marcarLeida(n.notifId)"
@@ -197,24 +197,24 @@ onMounted(cargarNotificaciones)
 .tab-btn-notif.activo { color: #0d8a72; border-bottom-color: #0d8a72; }
 .tab-badge-notif { background: #ef4444; color: white; font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 99px; }
 
-.tarjeta-lista {
-  background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px;
-}
-.texto-vacio-simple { padding: 20px; text-align: center; color: #94a3b8; font-size: 14px; margin: 0; }
+.tarjeta-vacia { background-color: #ffffff; border: 1px dashed #cbd5e1; border-radius: 16px; padding: 40px; text-align: center; }
+.texto-vacio-simple { color: #94a3b8; font-size: 14px; margin: 0; }
+.lista-notif { display: flex; flex-direction: column; gap: 10px; }
 .fila-notif {
   display: flex; align-items: flex-start; gap: 0.85rem;
-  padding: 14px 16px; border-radius: 10px; cursor: pointer; border-left: 3px solid transparent;
+  background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px;
+  cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.02); transition: all 0.2s ease;
 }
-.fila-notif:hover { background-color: #f8fafc; }
-.fila-no-leida { border-left-color: #0d8a72; background-color: #f0fdfa; }
+.fila-notif:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.fila-no-leida { border-color: #99f6e4; background-color: #f0fdfa; }
 .icono-notif {
-  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
 }
 .cuerpo-notif { flex: 1; min-width: 0; }
 .titulo-notif { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 2px 0; }
 .desc-notif { font-size: 13px; color: #64748b; margin: 0; }
-.tiempo-notif { font-size: 11px; color: #94a3b8; margin: 4px 0 0 0; }
+.tiempo-notif { font-size: 11px; color: #94a3b8; margin: 6px 0 0 0; }
 .punto-no-leida { width: 8px; height: 8px; border-radius: 50%; background: #0d8a72; flex-shrink: 0; margin-top: 6px; }
 
 @media (max-width: 768px) {
