@@ -64,63 +64,100 @@ onMounted(cargarNotificaciones)
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="flex items-start justify-between mb-4">
+  <div class="contenedor-notif">
+    <div class="encabezado-notif">
       <div>
-        <h2 class="text-2xl font-bold text-gray-800">Notificaciones</h2>
-        <p class="text-sm text-gray-500">Avisos sobre tus citas y tu cuenta</p>
+        <h2 class="titulo-principal">Notificaciones</h2>
+        <p class="subtitulo">Avisos sobre tus citas y tu cuenta</p>
       </div>
-      <button
-        v-if="notificaciones.some(n => !n.leida)"
-        @click="marcarTodasLeidas"
-        class="text-sm font-medium text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50"
-      >
+      <button v-if="notificaciones.some(n => !n.leida)" @click="marcarTodasLeidas" class="btn-marcar-todas">
         Marcar todas como leídas
       </button>
     </div>
 
-    <div class="flex gap-1 border-b border-gray-200 mb-4 flex-wrap">
+    <div class="tabs-notif">
       <button
         v-for="tab in tabs" :key="tab.key"
+        class="tab-btn-notif"
+        :class="{ activo: tabActiva === tab.key }"
         @click="tabActiva = tab.key"
-        class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px"
-        :class="tabActiva === tab.key ? 'border-teal-600 text-teal-700' : 'border-transparent text-gray-500 hover:text-gray-700'"
       >
         {{ tab.label }}
-        <span v-if="tab.count > 0" class="bg-red-500 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full">{{ tab.count }}</span>
+        <span v-if="tab.count > 0" class="tab-badge-notif">{{ tab.count }}</span>
       </button>
     </div>
 
-    <div v-if="cargando" class="space-y-3">
-      <p class="text-sm text-gray-500">Cargando...</p>
+    <div v-if="cargando" class="tarjeta-vacia">
+      <p class="texto-vacio-principal">Cargando...</p>
     </div>
 
-    <div v-else-if="notificacionesFiltradas.length === 0" class="space-y-3">
-      <div class="p-8 rounded-xl border bg-white border-gray-100 text-center">
-        <p class="text-sm text-gray-500">🔔 No tienes notificaciones en esta categoría.</p>
-      </div>
+    <div v-else-if="notificacionesFiltradas.length === 0" class="tarjeta-vacia">
+      <p class="texto-vacio-principal">🔔 No tienes notificaciones en esta categoría.</p>
     </div>
 
-    <div v-else class="space-y-2">
+    <div v-else class="lista-notif">
       <div
         v-for="n in notificacionesFiltradas" :key="n.notifId"
         @click="marcarLeida(n.notifId)"
-        class="flex items-start gap-3 p-4 rounded-xl border bg-white cursor-pointer hover:bg-gray-50"
-        :class="n.leida ? 'border-gray-100' : 'border-teal-200'"
+        class="fila-notif"
+        :class="{ 'fila-no-leida': !n.leida }"
       >
-        <div
-          class="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
-          :style="{ background: (colores[n.tipo] || '#64748b') + '22', color: colores[n.tipo] || '#64748b' }"
-        >
+        <div class="icono-notif" :style="{ background: (colores[n.tipo] || '#64748b') + '22', color: colores[n.tipo] || '#64748b' }">
           {{ iconos[n.tipo] || '🔔' }}
         </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-gray-800">{{ n.titulo }}</p>
-          <p class="text-sm text-gray-600">{{ n.descripcion }}</p>
-          <p class="text-xs text-gray-400 mt-1">{{ formatearTiempo(n.created_at) }}</p>
+        <div class="cuerpo-notif">
+          <p class="titulo-notif">{{ n.titulo }}</p>
+          <p class="desc-notif">{{ n.descripcion }}</p>
+          <p class="tiempo-notif">{{ formatearTiempo(n.created_at) }}</p>
         </div>
-        <div v-if="!n.leida" class="w-2 h-2 rounded-full bg-teal-600 mt-2 shrink-0"></div>
+        <div v-if="!n.leida" class="punto-no-leida"></div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.contenedor-notif { padding: 24px; max-width: 850px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.encabezado-notif { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.titulo-principal { font-size: 24px; font-weight: 600; color: #1e293b; margin: 0; }
+.subtitulo { font-size: 13px; color: #64748b; margin: 4px 0 0 0; }
+.btn-marcar-todas {
+  background: none; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 14px;
+  font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; white-space: nowrap;
+}
+.btn-marcar-todas:hover { background-color: #f8fafc; }
+
+.tabs-notif { display: flex; gap: 4px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; flex-wrap: wrap; }
+.tab-btn-notif {
+  background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 14px;
+  font-size: 13px; color: #64748b; cursor: pointer; font-weight: 500;
+  display: flex; align-items: center; gap: 6px; margin-bottom: -1px;
+}
+.tab-btn-notif.activo { color: #115e59; border-bottom-color: #115e59; font-weight: 600; }
+.tab-badge-notif { background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 9999px; }
+
+.tarjeta-vacia { background-color: #ffffff; border: 1px dashed #cbd5e1; border-radius: 16px; padding: 48px; text-align: center; }
+.texto-vacio-principal { color: #64748b; font-weight: 500; font-size: 15px; margin: 0; }
+
+.lista-notif { display: flex; flex-direction: column; gap: 12px; }
+.fila-notif {
+  background-color: #ffffff; padding: 16px; border-radius: 16px; border: 1px solid #e2e8f0;
+  display: flex; align-items: flex-start; gap: 14px; cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02); transition: all 0.2s ease;
+}
+.fila-notif:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.fila-no-leida { border-color: #99f6e4; background-color: #f0fdfa; }
+.icono-notif {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.cuerpo-notif { flex: 1; min-width: 0; }
+.titulo-notif { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 2px 0; }
+.desc-notif { font-size: 13px; color: #64748b; margin: 0; }
+.tiempo-notif { font-size: 11px; color: #94a3b8; margin: 6px 0 0 0; }
+.punto-no-leida { width: 8px; height: 8px; border-radius: 50%; background-color: #14b8a6; flex-shrink: 0; margin-top: 6px; }
+
+@media (max-width: 640px) {
+  .encabezado-notif { flex-direction: column; gap: 10px; }
+}
+</style>
