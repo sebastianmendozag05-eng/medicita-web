@@ -119,12 +119,15 @@
       <router-view v-else />
 
     </main>
+
+    <ChatbotWidget />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ChatbotWidget from '../../components/ChatbotWidget.vue'
 
 const nombreUsuario = ref('Paciente')
 const route = useRoute()

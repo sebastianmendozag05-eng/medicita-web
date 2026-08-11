@@ -10,6 +10,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(FaqSeeder::class);
+
         // Usuario admin
         DB::table('users')->insert([
             'name'       => 'Sebastian Admin',

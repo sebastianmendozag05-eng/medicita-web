@@ -16,6 +16,7 @@ use App\Models\Especialidad;
 use App\Models\Cita;
 use App\Models\NotaConsulta;
 use App\Models\Notificacion;
+use App\Models\Faq;
 
 class TestDataSeeder extends Seeder
 {
@@ -206,6 +207,9 @@ class TestDataSeeder extends Seeder
                     "Tu cita con el Dr. {$cita->medico->medNombre} {$cita->medico->medApePat} del {$cita->citFecha} fue marcada como completada.");
             }
         }
+
+        // ── Preguntas frecuentes del chatbot (idempotente, no depende del truncate de arriba) ──
+        $this->call(FaqSeeder::class);
 
         $this->command->info('Base de datos vaciada y repoblada. Contraseña para todas las cuentas: Password123');
         $this->command->table(['Rol', 'Cantidad'], [

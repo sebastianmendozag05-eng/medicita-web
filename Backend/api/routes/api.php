@@ -17,6 +17,7 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\RecepcionistaController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\EspecialidadController;
+use App\Http\Controllers\ChatbotController;
 
 Route::prefix('v1')->group(function () {
     Route::middleware('throttle:6,1')->group(function () {
@@ -75,6 +76,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/notificaciones', [NotificacionController::class, 'index']);
         Route::put('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodasLeidas']);
         Route::put('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida']);
+
+        Route::get('/chatbot/preguntas-frecuentes', [ChatbotController::class, 'preguntasFrecuentes']);
+        Route::post('/chatbot/consultar', [ChatbotController::class, 'consultar']);
 
         Route::post('/expediente', [ExpedienteController::class, 'store']);
         Route::get('/expediente/{pacId}', [ExpedienteController::class, 'show']);
