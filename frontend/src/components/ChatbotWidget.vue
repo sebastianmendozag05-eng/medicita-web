@@ -62,7 +62,7 @@ const mensajes = ref([
   { de: 'bot', texto: '¡Hola! Soy el asistente de MediCita. Puedo responder preguntas frecuentes sobre citas, tu cuenta y el sistema. ¿En qué te ayudo?' },
 ])
 
-const mostrarSugerencias = computed(() => mensajes.value.length <= 1 && preguntasFrecuentes.value.length > 0)
+const mostrarSugerencias = computed(() => !cargando.value && preguntasFrecuentes.value.length > 0)
 const sugerenciasVisibles = computed(() => preguntasFrecuentes.value.slice(0, 4))
 
 const cargarSugerencias = async () => {
