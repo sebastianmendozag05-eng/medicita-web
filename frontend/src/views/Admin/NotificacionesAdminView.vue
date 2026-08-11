@@ -142,15 +142,16 @@ const marcarTodasLeidas = async () => {
   align-items: flex-start;
   gap: 1rem;
   background: white;
-  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
   padding: 1rem 1.2rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.2s ease;
   position: relative;
 }
-.notif-item:hover { background: #f8fafc; }
-.notif-item.unread { border-left: 3px solid #0d8a72; }
+.notif-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+.notif-item.unread { border-color: #99f6e4; background-color: #f0fdfa; }
 
 .notif-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
 .notif-body { flex: 1; }
@@ -159,5 +160,5 @@ const marcarTodasLeidas = async () => {
 .notif-tiempo { font-size: 0.76rem; color: #94a3b8; margin-top: 0.4rem; }
 .notif-dot { width: 8px; height: 8px; background: #0d8a72; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
 
-.empty { text-align: center; color: #94a3b8; padding: 3rem; background: white; border-radius: 12px; }
+.empty { text-align: center; color: #94a3b8; padding: 3rem; background: white; border: 1px dashed #cbd5e1; border-radius: 16px; }
 </style>
