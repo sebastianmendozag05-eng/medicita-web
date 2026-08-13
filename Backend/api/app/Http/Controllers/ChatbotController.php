@@ -17,13 +17,14 @@ class ChatbotController extends Controller
     }
 
     // Recibe un mensaje libre del paciente y devuelve la FAQ que mejor coincide,
-    // por conteo de palabras clave en común. Sin llamadas a APIs externas.
+    // comparando SOLO contra las palabras clave curadas de cada FAQ (no contra el
+    // texto de la pregunta, que tiene conectores como "que"/"para" que generaban
+    // falsos positivos). Sin llamadas a APIs externas.
     public function consultar(Request $request)
     {
         $request->validate(['mensaje' => 'required|string|max:300']);
 
         $mensaje = $this->normalizar($request->mensaje);
-        $palabrasMensaje = array_filter(explode(' ', $mensaje), fn ($p) => strlen($p) > 2);
 
         $faqs = Faq::where('faqActivo', true)->get();
 
@@ -31,11 +32,13 @@ class ChatbotController extends Controller
         $mejorPuntaje = 0;
 
         foreach ($faqs as $faq) {
-            $textoFaq = $this->normalizar($faq->faqPalabrasClave . ' ' . $faq->faqPregunta);
+            $frasesClave = array_map('trim', explode(',', $this->normalizar($faq->faqPalabrasClave)));
             $puntaje = 0;
-            foreach ($palabrasMensaje as $palabra) {
-                if (str_contains($textoFaq, $palabra)) {
-                    $puntaje++;
+            foreach ($frasesClave as $frase) {
+                if ($frase !== '' && preg_match('/\b' . preg_quote($frase, '/') . '\b/', $mensaje)) {
+                    // Frases de más de una palabra pesan más: son más específicas
+                    // y menos propensas a coincidir por accidente.
+                    $puntaje += substr_count($frase, ' ') > 0 ? 2 : 1;
                 }
             }
             if ($puntaje > $mejorPuntaje) {

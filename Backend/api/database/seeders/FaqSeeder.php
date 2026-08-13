@@ -19,13 +19,13 @@ class FaqSeeder extends Seeder
                 'faqCategoria' => 'citas',
                 'faqPregunta' => '¿Cómo agendo una cita?',
                 'faqRespuesta' => 'Ve a "Mis Citas" en el menú lateral, elige la especialidad, el médico, la fecha y una hora disponible, y confirma. Solo se muestran horarios realmente libres para ese médico.',
-                'faqPalabrasClave' => 'agendar,agenda,cita,nueva,reservar,programar,como pido',
+                'faqPalabrasClave' => 'agendar,agendo,agenda,nueva cita,reservar,programar,como pido',
             ],
             [
                 'faqCategoria' => 'citas',
                 'faqPregunta' => '¿Cómo cancelo una cita?',
                 'faqRespuesta' => 'En "Mis Citas" busca la cita que quieres cancelar y presiona "Cancelar". Recibirás una notificación confirmando el cambio.',
-                'faqPalabrasClave' => 'cancelar,cancelacion,anular,quitar cita',
+                'faqPalabrasClave' => 'cancelar,cancelo,cancelacion,anular,quitar cita',
             ],
             [
                 'faqCategoria' => 'citas',
@@ -74,6 +74,12 @@ class FaqSeeder extends Seeder
                 'faqPregunta' => '¿Dónde veo mi historial médico?',
                 'faqRespuesta' => 'En la sección "Historial Médico" del menú lateral encontrarás tus consultas pasadas, diagnósticos y notas registradas por tus médicos.',
                 'faqPalabrasClave' => 'historial,consultas pasadas,diagnosticos anteriores',
+            ],
+            [
+                'faqCategoria' => 'general',
+                'faqPregunta' => 'Tengo un síntoma o malestar, ¿qué hago?',
+                'faqRespuesta' => 'Este chat no da diagnósticos ni consejos médicos. Si tienes un síntoma o malestar, agenda una cita con el médico correspondiente desde "Mis Citas". Si es una urgencia, acude directamente a un servicio de urgencias en vez de esperar una cita.',
+                'faqPalabrasClave' => 'dolor,me duele,sintoma,malestar,me siento mal,fiebre,mareo,urgencia,emergencia',
             ],
             [
                 'faqCategoria' => 'general',
